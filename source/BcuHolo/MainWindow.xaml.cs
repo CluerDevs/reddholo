@@ -3,13 +3,11 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
-using System.Windows.Interop;
 using System.Windows.Media;
 using UninstallTools;
 using UninstallTools.Factory;
@@ -20,12 +18,13 @@ namespace BcuHolo
     {
         private List<AppRow> _rows = new();
         private ICollectionView _view;
+        private string _driveRoot; // "C:" etc., null = all drives
 
         public MainWindow()
         {
             InitializeComponent();
-            SourceInitialized += (_, _) => DarkTitleBar();
             Loaded += async (_, _) => await ScanAsync();
+            StateChanged += (_, _) => FitMaximized();
 
             // Updates and Windows features clutter the list and rarely have sizes; the classic UI still covers them.
             UninstallToolsGlobalConfig.ScanWinUpdates = false;
@@ -36,8 +35,8 @@ namespace BcuHolo
         {
             RescanButton.IsEnabled = false;
             ScanOverlay.Visibility = Visibility.Visible;
+            ScanProgress.IsIndeterminate = true;
             ScanStatus.Text = "Starting…";
-            ShowDrive(0);
 
             IList<ApplicationUninstallerEntry> entries;
             try
@@ -67,15 +66,14 @@ namespace BcuHolo
             var largest = visible.Count == 0 ? 0 : visible.Max(e => e.EstimatedSize.GetKbSize());
 
             _rows = visible.Select(e => new AppRow(e, largest)).OrderByDescending(r => r.SizeKb).ToList();
-            foreach (var r in _rows) r.PropertyChanged += (_, _) => UpdateSelection();
+            foreach (var r in _rows)
+                r.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(AppRow.IsSelected)) UpdateSelection(); };
 
             _view = CollectionViewSource.GetDefaultView(_rows);
             _view.Filter = o => Matches((AppRow)o);
             AppList.ItemsSource = _view;
 
-            var appsKb = _rows.Sum(r => r.SizeKb);
-            ShowDrive(appsKb);
-            UpdateCaption();
+            LoadDrives();
             UpdateSelection();
 
             ScanOverlay.Visibility = Visibility.Collapsed;
@@ -83,13 +81,40 @@ namespace BcuHolo
             AppList.Focus();
         }
 
-        private void ShowDrive(long appsKb)
+        private static List<DriveInfo> FixedDrives() =>
+            DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.Fixed && d.IsReady).ToList();
+
+        private void LoadDrives()
         {
-            var drive = new DriveInfo(Path.GetPathRoot(Environment.SystemDirectory)!);
-            long totalKb = drive.TotalSize / 1024, freeKb = drive.TotalFreeSpace / 1024, usedKb = totalKb - freeKb;
+            var drives = FixedDrives();
+            var items = new List<DriveItem> { DriveItem.All(drives, _rows.Count) };
+            items.AddRange(drives.Select(DriveItem.For));
+
+            var keep = _driveRoot ?? Root(new DriveInfo(Path.GetPathRoot(Environment.SystemDirectory)!));
+            DriveList.ItemsSource = items;
+            DriveList.SelectedItem = items.FirstOrDefault(i => i.Root == keep) ?? items[0];
+        }
+
+        private static string Root(DriveInfo d) => d.Name.Substring(0, 2).ToUpperInvariant();
+
+        private void Drive_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (DriveList.SelectedItem is not DriveItem item) return;
+            _driveRoot = item.Root;
+            _view?.Refresh();
+            UpdateCaption();
+            ShowOverview();
+        }
+
+        private void ShowOverview()
+        {
+            var drives = FixedDrives().Where(d => _driveRoot == null || Root(d) == _driveRoot).ToList();
+            var roots = drives.Select(Root).ToHashSet();
+            long totalKb = drives.Sum(d => d.TotalSize) / 1024, freeKb = drives.Sum(d => d.TotalFreeSpace) / 1024;
+            long usedKb = totalKb - freeKb;
             var used = totalKb > 0 ? (double)usedKb / totalKb : 0;
 
-            DriveLabel.Text = "Local disk " + drive.Name.TrimEnd('\\');
+            DriveLabel.Text = _driveRoot == null ? $"All {drives.Count} drives" : $"Local disk {_driveRoot}";
             DrivePct.Text = Math.Round(used * 100) + "%";
             DriveFree.Text = AppRow.FormatKb(freeKb);
             DriveUsed.Text = $"{AppRow.FormatKb(usedKb)} / {AppRow.FormatKb(totalKb)}";
@@ -98,17 +123,24 @@ namespace BcuHolo
             var circ = Math.PI * (132 - 12) / 12;
             DriveRing.StrokeDashArray = new DoubleCollection { used * circ, circ };
 
-            // App sizes are publisher/scan estimates, so clamp: they can exceed what the drive reports.
+            // Only apps whose install folder is on these drives count toward their used space.
+            var appsKb = _rows.Where(r => roots.Contains(r.Drive)).Sum(r => r.SizeKb);
             var otherKb = Math.Max(0, usedKb - appsKb);
             SplitTitle.Text = $"Where the {AppRow.FormatKb(usedKb)} went";
-            AppsTotal.Text = appsKb > 0 ? AppRow.FormatKb(appsKb) : "—";
-            OtherTotal.Text = appsKb > 0 ? AppRow.FormatKb(otherKb) : "—";
+            AppsTotal.Text = AppRow.FormatKb(appsKb);
+            OtherTotal.Text = AppRow.FormatKb(otherKb);
             SplitApps.Width = new GridLength(Math.Max(appsKb, 1), GridUnitType.Star);
             SplitOther.Width = new GridLength(Math.Max(otherKb, 1), GridUnitType.Star);
+
+            var unknown = _rows.Count(r => r.Drive == "?");
+            SplitNote.Text = appsKb > usedKb
+                ? "App sizes are installer estimates and overshoot here."
+                : unknown > 0 && _driveRoot == null ? $"{unknown} apps have no known install folder and aren't counted." : "";
         }
 
         private bool Matches(AppRow r)
         {
+            if (_driveRoot != null && r.Drive != _driveRoot) return false;
             var q = SearchBox.Text.Trim();
             if (q.Length > 0 && r.Name.IndexOf(q, StringComparison.OrdinalIgnoreCase) < 0
                              && r.Publisher.IndexOf(q, StringComparison.OrdinalIgnoreCase) < 0)
@@ -121,10 +153,10 @@ namespace BcuHolo
 
         private void UpdateCaption()
         {
-            var shown = _view?.Cast<object>().Count() ?? 0;
-            ListCaption.Text = shown == _rows.Count
-                ? $"· {_rows.Count} · sorted by size"
-                : $"· {shown} of {_rows.Count} · sorted by size";
+            var shown = _view?.Cast<AppRow>().ToList() ?? new List<AppRow>();
+            var largest = shown.Count == 0 ? 0 : shown.Max(r => r.SizeKb);
+            foreach (var r in shown) r.SetScale(largest);
+            ListCaption.Text = $"· {shown.Count} · {AppRow.FormatKb(shown.Sum(r => r.SizeKb))} · sorted by size";
         }
 
         private void UpdateSelection()
@@ -171,16 +203,55 @@ namespace BcuHolo
 
         private async void Rescan_Click(object sender, RoutedEventArgs e) => await ScanAsync();
 
-        // Dark native title bar so the window chrome matches (Windows 11; silently ignored on older builds).
-        private void DarkTitleBar()
+        private void Min_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+        private void Max_Click(object sender, RoutedEventArgs e) =>
+            WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+        private void Close_Click(object sender, RoutedEventArgs e) => Close();
+
+        // With WindowChrome a maximized window overhangs the screen by the resize border; pad it back in.
+        private void FitMaximized()
         {
-            var hwnd = new WindowInteropHelper(this).Handle;
-            int on = 1, caption = 0x0020100A; // COLORREF 0x00BBGGRR for #0A1020
-            DwmSetWindowAttribute(hwnd, 20, ref on, sizeof(int));      // DWMWA_USE_IMMERSIVE_DARK_MODE
-            DwmSetWindowAttribute(hwnd, 35, ref caption, sizeof(int)); // DWMWA_CAPTION_COLOR
+            var max = WindowState == WindowState.Maximized;
+            var t = SystemParameters.WindowResizeBorderThickness;
+            Frame.Margin = max ? new Thickness(t.Left + 4, t.Top + 4, t.Right + 4, t.Bottom + 4) : new Thickness(0);
+            Frame.BorderThickness = new Thickness(max ? 0 : 1);
+            MaxButton.Content = max ? "" : "";
+        }
+    }
+
+    /// <summary>One card in the Drives rail.</summary>
+    public sealed class DriveItem
+    {
+        public string Root { get; private init; }
+        public string Title { get; private init; }
+        public string Detail { get; private init; }
+        public GridLength UsedFill { get; private init; }
+        public GridLength UsedRest { get; private init; }
+        public Brush BarBrush { get; private init; }
+
+        public static DriveItem All(IReadOnlyCollection<DriveInfo> drives, int apps) =>
+            Make(null, "All drives", $"{apps} apps", drives.Sum(d => d.TotalSize), drives.Sum(d => d.TotalFreeSpace));
+
+        public static DriveItem For(DriveInfo d)
+        {
+            var label = string.IsNullOrWhiteSpace(d.VolumeLabel) ? "Local disk" : d.VolumeLabel;
+            return Make(d.Name.Substring(0, 2).ToUpperInvariant(), $"{d.Name.Substring(0, 2)} {label}",
+                $"{AppRow.FormatKb(d.TotalFreeSpace / 1024)} free", d.TotalSize, d.TotalFreeSpace);
         }
 
-        [DllImport("dwmapi.dll")]
-        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
+        private static DriveItem Make(string root, string title, string detail, long total, long free)
+        {
+            var used = total > 0 ? (double)(total - free) / total : 0;
+            return new DriveItem
+            {
+                Root = root,
+                Title = title,
+                Detail = detail,
+                UsedFill = new GridLength(Math.Max(used, 0.01), GridUnitType.Star),
+                UsedRest = new GridLength(Math.Max(1 - used, 0.01), GridUnitType.Star),
+                // Nearly-full drives turn orange so they stand out in the rail.
+                BarBrush = (Brush)Application.Current.Resources[used >= 0.9 ? "Danger" : "Accent"],
+            };
+        }
     }
 }
