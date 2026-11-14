@@ -10,21 +10,21 @@ using System.Text;
 using System.Threading.Tasks;
 using Klocman.Extensions;
 using Klocman.IO;
-using Scripting;
 using File = System.IO.File;
 
 namespace UninstallTools.Factory.InfoAdders
 {
     public class FastSizeGenerator : IMissingInfoAdder
     {
-        private static readonly FileSystemObjectClass _fileSystemObject;
+        // Late-bound Scripting.FileSystemObject: avoids a COM interop reference, which `dotnet build` cannot resolve.
+        private static readonly dynamic _fileSystemObject;
         private static bool _everythingAvailable;
 
         static FastSizeGenerator()
         {
             try
             {
-                _fileSystemObject = new FileSystemObjectClass();
+                _fileSystemObject = Activator.CreateInstance(Type.GetTypeFromProgID("Scripting.FileSystemObject", true));
             }
             catch (Exception ex)
             {
@@ -64,12 +64,12 @@ namespace UninstallTools.Factory.InfoAdders
                 }
             }
 
-            if (_fileSystemObject != null)
+            if ((object)_fileSystemObject != null)
             {
                 try
                 {
-                    var folder = _fileSystemObject.GetFolder(target.InstallLocation);
-                    var size = new FileSize(Convert.ToInt64(folder.Size) / 1024);
+                    dynamic folder = _fileSystemObject.GetFolder(target.InstallLocation);
+                    var size = new FileSize(Convert.ToInt64((object)folder.Size) / 1024);
                     target.EstimatedSize = size;
                 }
                 catch (Exception ex)

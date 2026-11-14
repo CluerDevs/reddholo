@@ -9,20 +9,20 @@ using System.Windows.Forms;
 using BrightIdeasSoftware;
 using Klocman.IO;
 using Klocman.Tools;
-using Scripting;
 using UniversalUninstaller.Properties;
 
 namespace UniversalUninstaller
 {
     public partial class TargetList : UserControl
     {
-        static readonly FileSystemObjectClass FileSystemObject;
+        // Late-bound Scripting.FileSystemObject: avoids a COM interop reference, which `dotnet build` cannot resolve.
+        static readonly dynamic FileSystemObject;
 
         static TargetList()
         {
             try
             {
-                FileSystemObject = new FileSystemObjectClass();
+                FileSystemObject = Activator.CreateInstance(Type.GetTypeFromProgID("Scripting.FileSystemObject", true));
             }
             catch (Exception ex)
             {
@@ -67,13 +67,13 @@ namespace UniversalUninstaller
             if (treeEntry.IsDirectory == false)
                 return FileSize.FromBytes(((FileInfo)treeEntry.FileSystemInfo).Length);
 
-            if (FileSystemObject == null || treeEntry.FileSystemInfo is not DirectoryInfo dirInfo || !dirInfo.Exists)
+            if ((object)FileSystemObject == null || treeEntry.FileSystemInfo is not DirectoryInfo dirInfo || !dirInfo.Exists)
                 return FileSize.Empty;
 
             try
             {
-                var folder = FileSystemObject.GetFolder(dirInfo.FullName);
-                var size = new FileSize(Convert.ToInt64(folder.Size) / 1024);
+                dynamic folder = FileSystemObject.GetFolder(dirInfo.FullName);
+                var size = new FileSize(Convert.ToInt64((object)folder.Size) / 1024);
                 return size;
             }
             catch (Exception ex)
