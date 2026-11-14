@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<!-- Inherits net8 target, shared bin output and the requireAdministrator manifest from ..\Directory.Build.props.
+	     Must build into the same bin folder as BCUninstaller: the engine finds its helper exes beside UninstallTools.dll. -->
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<AssemblyName>BCU-Holo</AssemblyName>
+		<Product>BCU Holo</Product>
+		<UseWPF>true</UseWPF>
+		<Nullable>disable</Nullable>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\UninstallTools\UninstallTools.csproj" />
+		<ProjectReference Include="..\KlocTools\KlocTools.csproj" />
+	</ItemGroup>
+</Project>
