@@ -212,11 +212,21 @@ namespace BcuHolo.Modules.Cleanup
 
         private static long FolderBytes(string[] roots, Func<FileInfo, bool> keep)
         {
+            // Streamed, not via ListFiles: temp/shader caches can hold tens of thousands of files, and Length
+            // is already filled in from the directory enumeration.
             long total = 0;
-            foreach (var f in ListFiles(roots, keep))
+            foreach (var root in Normalize(roots))
             {
-                try { total += f.Length; }
-                catch (Exception) { } // vanished between listing and reading
+                if (!Directory.Exists(root)) continue;
+                try
+                {
+                    foreach (var f in new DirectoryInfo(root).EnumerateFiles("*", Opts))
+                        if (keep == null || keep(f)) total += f.Length;
+                }
+                catch (Exception)
+                {
+                    // Root became unreadable mid-walk: keep what was counted so far.
+                }
             }
             return total;
         }
