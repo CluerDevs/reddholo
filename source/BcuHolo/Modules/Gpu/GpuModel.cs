@@ -99,7 +99,17 @@ namespace BcuHolo.Modules.Gpu
         public string Warning { get; private set; } = "";
         public string Status { get; private set; } = "";
 
-        public event Action Changed;
+        public event Action Changed
+        {
+            add
+            {
+                bool first = _changed == null;
+                _changed += value;
+                if (first) _timer?.Change(0, 1000); // polling may have been idle: fresh values now, not stale ones for up to 1 s
+            }
+            remove => _changed -= value;
+        }
+        private Action _changed;
 
         /// <summary>
         /// Readers of <see cref="Current"/> that don't subscribe to Changed (dashboard poll, widget) hold demand while they
@@ -162,10 +172,10 @@ namespace BcuHolo.Modules.Gpu
         /// <summary>Changed is for the UI; the engine may raise it from a pool thread.</summary>
         private void RaiseChanged()
         {
-            if (Changed == null) return; // no UI listening: skip the dispatcher post
+            if (_changed == null) return; // no UI listening: skip the dispatcher post
             var d = Application.Current?.Dispatcher;
-            if (d == null || d.CheckAccess()) Changed?.Invoke();
-            else d.BeginInvoke(new Action(() => Changed?.Invoke()));
+            if (d == null || d.CheckAccess()) _changed?.Invoke();
+            else d.BeginInvoke(new Action(() => _changed?.Invoke()));
         }
 
         private void Tick()
@@ -181,7 +191,7 @@ namespace BcuHolo.Modules.Gpu
         {
             if (_shutDown) return;
             if (_tick++ % 3 == 0 && _viewOpen) Afterburner = IsAfterburnerRunning();
-            if (!CurveActive && Changed == null && Volatile.Read(ref _demand) == 0) return; // nobody reading: skip NVML
+            if (!CurveActive && _changed == null && Volatile.Read(ref _demand) == 0) return; // nobody reading: skip NVML
             if (_dev == null) { RaiseChanged(); return; }
 
             bool bad = false;
