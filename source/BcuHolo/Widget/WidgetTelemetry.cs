@@ -368,6 +368,9 @@ namespace BcuHolo.Widget
             return 0;
         }
 
+        /// <summary>Which I/O values the current layout shows; the sampler skips (or pauses for) the rest.</summary>
+        public void WantIo(bool net, bool disk, bool whea) => _io.Want(net, disk, whea);
+
         public void Dispose() => _io.Dispose();
 
         [StructLayout(LayoutKind.Sequential)]
@@ -398,8 +401,24 @@ namespace BcuHolo.Widget
         private PerformanceCounter _rd, _wr;
         private bool _diskFailed;
         private int _wheaBoot = -1, _whea30 = -1;
+        private long _wheaAt = -1;       // tick of the last WHEA query; -1 = query on the next tick
+        private bool _nicsStale = true;  // re-pick adapters on the next tick
+        private volatile bool _wantNet, _wantDisk, _wantWhea;
+        private bool _running;
 
-        public IoSampler() => _timer = new Timer(_ => Tick(), null, 300, 1000);
+        // Starts paused: the widget says which values its layout shows via Want().
+        public IoSampler() => _timer = new Timer(_ => Tick(), null, Timeout.Infinite, Timeout.Infinite);
+
+        /// <summary>Called on the UI thread when the layout changes. With nothing wanted the timer is paused.</summary>
+        public void Want(bool net, bool disk, bool whea)
+        {
+            _wantNet = net; _wantDisk = disk; _wantWhea = whea;
+            bool run = net || disk || whea;
+            if (run == _running || _disposed) return;
+            _running = run;
+            try { _timer.Change(run ? 300 : Timeout.Infinite, run ? 1000 : Timeout.Infinite); }
+            catch (ObjectDisposedException) { }
+        }
 
         private void Tick()
         {
@@ -408,7 +427,9 @@ namespace BcuHolo.Widget
             {
                 if (_disposed) return;
                 long tick = _ticks++;
-                if (tick % 30 == 0) _nics = PickNics();
+                bool net = _wantNet, disk = _wantDisk, whea = _wantWhea;
+                if (!net) { _nics = Array.Empty<NetworkInterface>(); _last.Clear(); _nicsStale = true; } // no stale delta on re-enable
+                else if (_nicsStale || tick % 30 == 0) { _nics = PickNics(); _nicsStale = false; }
 
                 double now = _sw.Elapsed.TotalSeconds, dt = now - _lastT;
                 _lastT = now;
@@ -428,7 +449,7 @@ namespace BcuHolo.Widget
                 double down = any && dt > 0.2 ? rx * 8.0 / dt : double.NaN, up = any && dt > 0.2 ? tx * 8.0 / dt : double.NaN;
 
                 double read = double.NaN, write = double.NaN;
-                if (_rd == null && !_diskFailed)
+                if (disk && _rd == null && !_diskFailed) // created lazily: loading PhysicalDisk counters is heavy
                 {
                     try
                     {
@@ -443,14 +464,16 @@ namespace BcuHolo.Widget
                         _rd?.Dispose(); _wr?.Dispose(); _rd = _wr = null;
                     }
                 }
-                else if (_rd != null)
+                else if (disk && _rd != null)
                 {
                     try { read = _rd.NextValue(); write = _wr.NextValue(); }
                     catch (Exception) { read = write = double.NaN; }
                 }
 
-                if (tick % 60 == 0)
+                if (!whea) _wheaAt = -1;
+                else if (_wheaAt < 0 || tick - _wheaAt >= 60)
                 {
+                    _wheaAt = tick;
                     _wheaBoot = CountWhea(Environment.TickCount64);
                     _whea30 = CountWhea(30L * 24 * 3600 * 1000);
                 }

@@ -145,6 +145,7 @@ namespace BcuHolo.Widget
             if (Has("Ram") || Has("Vram")) halves.Add(w => new MemoryPart(w, Has("Ram"), Has("Vram")));
             if (Has("Fans") || Has("Drive")) halves.Add(w => new CoolingPart(w, Has("Fans"), Has("Drive")));
             if (Has("Net") || Has("Disk")) halves.Add(w => new IoPart(w, Has("Net"), Has("Disk")));
+            _tel.WantIo(Has("Net"), Has("Disk"), Has("Whea"));
 
             var root = new StackPanel();
             if (Has("Header")) root.Children.Add(Track(new HeaderPart()));
