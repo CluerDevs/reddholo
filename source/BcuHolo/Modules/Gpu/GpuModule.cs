@@ -27,6 +27,9 @@ namespace BcuHolo.Modules.Gpu
             return BuildTile(host);
         }
 
+        /// <summary>Starts the engine without building a view (widget-only launch).</summary>
+        public void Start(IHoloHost host) => _m.Start(host);
+
         /// <summary>Restores automatic fan control (if a curve was applied) and stops the engine. Also runs on app exit.</summary>
         public void Disable() => _m.Shutdown();
 

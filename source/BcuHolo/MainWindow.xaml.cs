@@ -39,11 +39,21 @@ namespace BcuHolo
             InitializeComponent();
             _rail = _modules.OrderBy(m => m.Order).Select(m => new RailItem(m)).ToList();
             ModuleList.ItemsSource = _rail;
-            ModuleList.SelectedIndex = 0;
-            // "--page cleanup" opens straight on a module (handy for shortcuts and screenshots).
-            var args = Environment.GetCommandLineArgs();
-            var i = Array.IndexOf(args, "--page");
-            if (i > 0 && i + 1 < args.Length) Navigate(args[i + 1]);
+            // The widget reads the GPU engine even when this window is never shown (--widget at logon).
+            _modules.OfType<BcuHolo.Modules.Gpu.GpuModule>().First().Start(this);
+            // Build the first page only once the window is shown: the dashboard tiles start disk walks, WMI and COM scans.
+            DependencyPropertyChangedEventHandler firstShow = null;
+            firstShow = (_, _) =>
+            {
+                if (!IsVisible) return;
+                IsVisibleChanged -= firstShow;
+                ModuleList.SelectedIndex = 0;
+                // "--page cleanup" opens straight on a module (handy for shortcuts and screenshots).
+                var args = Environment.GetCommandLineArgs();
+                var i = Array.IndexOf(args, "--page");
+                if (i > 0 && i + 1 < args.Length) Navigate(args[i + 1]);
+            };
+            IsVisibleChanged += firstShow;
 
             StateChanged += (_, _) => { FitMaximized(); ApplyRoundRegion(); };
             SizeChanged += (_, _) => ApplyRoundRegion();
