@@ -35,7 +35,6 @@ namespace BcuHolo.Modules.Startup
             IsMicrosoft = Company.Contains("Microsoft", StringComparison.OrdinalIgnoreCase);
             Initials = string.Concat(Name.Split(new[] { ' ', '-', '_', '.', ':' }, StringSplitOptions.RemoveEmptyEntries)
                 .Where(w => char.IsLetterOrDigit(w[0])).Take(2).Select(w => char.ToUpperInvariant(w[0])));
-            Icon = LoadIcon(entry.CommandFilePath);
 
             try
             {
@@ -56,7 +55,14 @@ namespace BcuHolo.Modules.Startup
         public bool IsMicrosoft { get; }
         public string Initials { get; }
         /// <summary>Null when the file has no icon; the view then shows the initials tile.</summary>
-        public ImageSource Icon { get; }
+        public ImageSource Icon
+        {
+            get => _icon;
+            set { _icon = value; Raise(nameof(Icon)); }
+        }
+        private ImageSource _icon;
+        /// <summary>Set once StartupModule.EnsureIcons has queued this row, so each row is extracted once.</summary>
+        internal bool IconQueued;
 
         /// <summary>True when the entry runs at startup. Writes through to the engine.</summary>
         public bool Enabled
@@ -111,7 +117,7 @@ namespace BcuHolo.Modules.Startup
         };
 
         /// <summary>Runs on the worker thread, so the bitmap is frozen before the UI touches it.</summary>
-        private static ImageSource LoadIcon(string path)
+        internal static ImageSource LoadIcon(string path)
         {
             if (string.IsNullOrEmpty(path) || !File.Exists(path)) return null;
             try
