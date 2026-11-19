@@ -121,6 +121,11 @@ namespace BcuHolo.Modules.Sensors
         private readonly TextBlock _temp = SensorsModule.Text("--", 34, "Text", "Display");
         private readonly StackPanel _rows = new StackPanel { Margin = new Thickness(0, 8, 0, 0) };
         private readonly Action _onUpdate;
+        // Rows built once; Refresh only toggles visibility and text (it runs every second).
+        private readonly Grid _powRow, _vcoreRow, _driveRow, _fanRow;
+        private readonly TextBlock _pow, _vcore, _drive, _fan;
+        private readonly TextBlock _waiting = SensorsModule.Text("Waiting for sensors. CPU readings need the PawnIO driver.", 12, "Muted");
+        private bool _vcoreDanger;
 
         public SensorsTile(IHoloHost host)
         {
@@ -129,6 +134,12 @@ namespace BcuHolo.Modules.Sensors
             stack.Children.Add(_temp);
             stack.Children.Add(SensorsModule.Text("CPU package", 12, "Muted"));
             stack.Children.Add(_rows);
+            _powRow = AddRow("Package power", out _pow);
+            _vcoreRow = AddRow("Peak Vcore", out _vcore);
+            _driveRow = AddRow("Hottest SSD", out _drive);
+            _fanRow = AddRow("Fan", out _fan);
+            _waiting.Visibility = Visibility.Collapsed; // empty until the first Refresh, as before
+            _rows.Children.Add(_waiting);
             var all = new Button { Style = SensorsModule.Res<Style>("Ghost"), Content = "All sensors", HorizontalAlignment = HorizontalAlignment.Left,
                 Margin = new Thickness(0, 12, 0, 0), Padding = new Thickness(14, 0, 14, 0) };
             all.Click += (_, _) => host.Navigate("sensors");
@@ -146,31 +157,42 @@ namespace BcuHolo.Modules.Sensors
                 var all = SensorHub.Snapshot;
                 var t = SensorsModule.Find(all, "CPU Package", "°C");
                 _temp.Text = t == null ? "--" : t.Reading.Value.ToString("0") + " °C";
-                _rows.Children.Clear();
                 var p = SensorsModule.Find(all, "CPU Package", "W");
-                if (p != null) AddRow("Package power", SensorsModule.Fmt(p.Reading.Value, "W"), false);
+                Set(_powRow, _pow, p == null ? null : SensorsModule.Fmt(p.Reading.Value, "W"));
                 var v = SensorsModule.PeakVcore(all);
-                if (v.HasValue) AddRow("Peak Vcore", SensorsModule.Fmt(v.Value, "V"), v.Value > SensorsModule.VcoreWarn);
+                Set(_vcoreRow, _vcore, v.HasValue ? SensorsModule.Fmt(v.Value, "V") : null);
+                bool danger = v.HasValue && v.Value > SensorsModule.VcoreWarn;
+                if (danger != _vcoreDanger)
+                {
+                    _vcoreDanger = danger;
+                    _vcore.SetResourceReference(TextBlock.ForegroundProperty, danger ? "Danger" : "Text");
+                }
                 var d = SensorsModule.HottestDrive(all);
-                if (d != null) AddRow("Hottest SSD", SensorsModule.Fmt(d.Reading.Value, "°C"), false);
+                Set(_driveRow, _drive, d == null ? null : SensorsModule.Fmt(d.Reading.Value, "°C"));
                 var f = SensorsModule.TopFan(all);
-                if (f != null) AddRow("Fan", SensorsModule.Fmt(f.Reading.Value, "RPM"), false);
-                if (_rows.Children.Count == 0)
-                    _rows.Children.Add(SensorsModule.Text("Waiting for sensors. CPU readings need the PawnIO driver.", 12, "Muted"));
+                Set(_fanRow, _fan, f == null ? null : SensorsModule.Fmt(f.Reading.Value, "RPM"));
+                _waiting.Visibility = p == null && !v.HasValue && d == null && f == null ? Visibility.Visible : Visibility.Collapsed;
             }
             catch (Exception ex) { System.Diagnostics.Trace.WriteLine("SensorsTile: " + ex.Message); }
         }
 
-        private void AddRow(string label, string value, bool danger)
+        private static void Set(Grid row, TextBlock value, string text)
         {
-            var g = new Grid { Margin = new Thickness(0, 2, 0, 0) };
+            row.Visibility = text == null ? Visibility.Collapsed : Visibility.Visible;
+            if (text != null) value.Text = text;
+        }
+
+        private Grid AddRow(string label, out TextBlock value)
+        {
+            var g = new Grid { Margin = new Thickness(0, 2, 0, 0), Visibility = Visibility.Collapsed };
             g.ColumnDefinitions.Add(new ColumnDefinition());
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             g.Children.Add(SensorsModule.Text(label, 13, "Muted"));
-            var val = SensorsModule.Text(value, 13, danger ? "Danger" : "Text", "Mono");
-            Grid.SetColumn(val, 1);
-            g.Children.Add(val);
+            value = SensorsModule.Text("", 13, "Text", "Mono");
+            Grid.SetColumn(value, 1);
+            g.Children.Add(value);
             _rows.Children.Add(g);
+            return g;
         }
     }
 
