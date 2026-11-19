@@ -26,7 +26,7 @@ namespace BcuHolo.Modules.Sensors
         private const int HistoryLen = 60;
         private static readonly object Gate = new object();
         private static readonly List<ISensorSource> Sources = new List<ISensorSource> { new LhmSensorSource() };
-        private static readonly Dictionary<string, (double min, double max, Queue<double> hist)> Stats = new();
+        private static readonly Dictionary<(string, string, string, string), (double min, double max, Queue<double> hist)> Stats = new();
         private static IReadOnlyList<SensorEntry> _snapshot = new SensorEntry[0];
         private static Action _handlers;
         private static int _subscribers;
@@ -118,14 +118,19 @@ namespace BcuHolo.Modules.Sensors
                 foreach (var r in readings)
                 {
                     if (r == null || double.IsNaN(r.Value) || double.IsInfinity(r.Value)) continue;
-                    string key = r.Source + "|" + r.Group + "|" + r.Name + "|" + r.Unit;
-                    if (!Stats.TryGetValue(key, out var st)) st = (r.Value, r.Value, new Queue<double>());
+                    var key = (r.Source, r.Group, r.Name, r.Unit);
+                    // Only °C and W rows draw a sparkline (SensorsView); nothing else reads History.
+                    bool spark = r.Unit == "°C" || r.Unit == "W";
+                    if (!Stats.TryGetValue(key, out var st)) st = (r.Value, r.Value, spark ? new Queue<double>() : null);
                     st.min = Math.Min(st.min, r.Value);
                     st.max = Math.Max(st.max, r.Value);
-                    st.hist.Enqueue(r.Value);
-                    while (st.hist.Count > HistoryLen) st.hist.Dequeue();
+                    if (st.hist != null)
+                    {
+                        st.hist.Enqueue(r.Value);
+                        while (st.hist.Count > HistoryLen) st.hist.Dequeue();
+                    }
                     Stats[key] = st;
-                    list.Add(new SensorEntry { Reading = r, Min = st.min, Max = st.max, History = st.hist.ToArray() });
+                    list.Add(new SensorEntry { Reading = r, Min = st.min, Max = st.max, History = st.hist?.ToArray() });
                 }
             }
             _snapshot = list;
