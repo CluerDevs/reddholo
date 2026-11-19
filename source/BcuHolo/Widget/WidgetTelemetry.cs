@@ -405,6 +405,7 @@ namespace BcuHolo.Widget
         private bool _nicsStale = true;  // re-pick adapters on the next tick
         private volatile bool _wantNet, _wantDisk, _wantWhea;
         private bool _running;
+        private volatile bool _diskPaused; // set when Disk is hidden; the next counter sample spans the gap
 
         // Starts paused: the widget says which values its layout shows via Want().
         public IoSampler() => _timer = new Timer(_ => Tick(), null, Timeout.Infinite, Timeout.Infinite);
@@ -413,6 +414,7 @@ namespace BcuHolo.Widget
         public void Want(bool net, bool disk, bool whea)
         {
             _wantNet = net; _wantDisk = disk; _wantWhea = whea;
+            if (!disk) _diskPaused = true;
             bool run = net || disk || whea;
             if (run == _running || _disposed) return;
             _running = run;
@@ -455,7 +457,7 @@ namespace BcuHolo.Widget
                     {
                         _rd = new PerformanceCounter("PhysicalDisk", "Disk Read Bytes/sec", "_Total", true);
                         _wr = new PerformanceCounter("PhysicalDisk", "Disk Write Bytes/sec", "_Total", true);
-                        _rd.NextValue(); _wr.NextValue(); // first sample is always 0
+                        _rd.NextValue(); _wr.NextValue(); _diskPaused = false; // first sample is always 0
                     }
                     catch (Exception ex)
                     {
@@ -468,6 +470,8 @@ namespace BcuHolo.Widget
                 {
                     try { read = _rd.NextValue(); write = _wr.NextValue(); }
                     catch (Exception) { read = write = double.NaN; }
+                    // First sample after a pause is the average over the whole pause: drop it.
+                    if (_diskPaused) { read = write = double.NaN; _diskPaused = false; }
                 }
 
                 if (!whea) _wheaAt = -1;
