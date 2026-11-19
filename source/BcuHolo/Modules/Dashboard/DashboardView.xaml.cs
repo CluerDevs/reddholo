@@ -62,14 +62,33 @@ namespace BcuHolo.Modules.Dashboard
                 // Tiles arrive one after another (top row first, then module tiles), 40 ms apart.
                 int i = 0;
                 foreach (var tile in Tiles(this)) Motion.Enter(tile, 60 + 40 * i++);
-                _timer.Start();
-                await PollAsync();
+                _window = Window.GetWindow(this);
+                if (_window != null) _window.StateChanged += Gate;
+                Gate(null, null);
                 if (_staticLoaded) return;
                 _staticLoaded = true;
                 LoadStorage();
                 await LoadHealthAsync();
             };
-            Unloaded += (_, _) => _timer.Stop(); // no polling while another page is shown
+            Unloaded += (_, _) =>
+            {
+                if (_window != null) _window.StateChanged -= Gate;
+                _window = null;
+                _timer.Stop(); // no polling while another page is shown
+            };
+            // Hide() (window closed with the widget open) does not unload the view; minimizing does not hide it.
+            IsVisibleChanged += (_, _) => Gate(null, null);
+        }
+
+        private Window _window;
+
+        /// <summary>Poll only while the page is actually on screen; refresh at once when it comes back.</summary>
+        private void Gate(object sender, EventArgs e)
+        {
+            bool on = IsLoaded && IsVisible && _window?.WindowState != WindowState.Minimized;
+            if (on == _timer.IsEnabled) return;
+            _timer.IsEnabled = on;
+            if (on) _ = PollAsync();
         }
 
         private static IEnumerable<Border> Tiles(DependencyObject root)
