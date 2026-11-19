@@ -1,207 +1,98 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.IO;
 using System.Linq;
-using System.Threading.Tasks;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
-using UninstallTools;
-using UninstallTools.Factory;
+using BcuHolo.Modules.Apps;
+using BcuHolo.Modules.Dashboard;
+using BcuHolo.Plugins;
 
 namespace BcuHolo
 {
-    public partial class MainWindow : Window
+    /// <summary>Shell: rail of modules, caption buttons, rounded frame. Each module owns its own page.</summary>
+    public partial class MainWindow : Window, IHoloHost
     {
-        private List<AppRow> _rows = new();
-        private ICollectionView _view;
-        private string _driveRoot; // "C:" etc., null = all drives
+        private const double Radius = 16;
+
+        // Built-in modules. External plugins will be appended here by the loader (later phase).
+        private readonly List<IHoloModule> _modules;
+
+        private readonly Dictionary<string, FrameworkElement> _views = new();
+        private List<RailItem> _rail;
 
         public MainWindow()
         {
+            _modules = new List<IHoloModule>
+            {
+                new DashboardModule(() => _modules),
+                new AppsModule(),
+                new BcuHolo.Modules.Cleanup.CleanupModule(),
+                new BcuHolo.Modules.Gpu.GpuModule(),
+                new BcuHolo.Modules.Drivers.DriversModule(),
+                new BcuHolo.Modules.Startup.StartupModule(),
+                new BcuHolo.Modules.Sensors.SensorsModule(),
+            };
             InitializeComponent();
-            Loaded += async (_, _) => await ScanAsync();
-            StateChanged += (_, _) => FitMaximized();
+            _rail = _modules.OrderBy(m => m.Order).Select(m => new RailItem(m)).ToList();
+            ModuleList.ItemsSource = _rail;
+            ModuleList.SelectedIndex = 0;
+            // "--page cleanup" opens straight on a module (handy for shortcuts and screenshots).
+            var args = Environment.GetCommandLineArgs();
+            var i = Array.IndexOf(args, "--page");
+            if (i > 0 && i + 1 < args.Length) Navigate(args[i + 1]);
 
-            // Updates and Windows features clutter the list and rarely have sizes; the classic UI still covers them.
-            UninstallToolsGlobalConfig.ScanWinUpdates = false;
-            UninstallToolsGlobalConfig.ScanWinFeatures = false;
-        }
-
-        private async Task ScanAsync()
-        {
-            RescanButton.IsEnabled = false;
-            ScanOverlay.Visibility = Visibility.Visible;
-            ScanProgress.IsIndeterminate = true;
-            ScanStatus.Text = "Starting…";
-
-            IList<ApplicationUninstallerEntry> entries;
-            try
+            StateChanged += (_, _) => { FitMaximized(); ApplyRoundRegion(); };
+            SizeChanged += (_, _) => ApplyRoundRegion();
+            SourceInitialized += (_, _) =>
             {
-                entries = await Task.Run(() => ApplicationUninstallerFactory.GetUninstallerEntries(p =>
-                    Dispatcher.BeginInvoke(() =>
-                    {
-                        ScanStatus.Text = p.Inner?.Message ?? p.Message;
-                        if (p.TotalCount > 0)
-                        {
-                            ScanProgress.IsIndeterminate = false;
-                            ScanProgress.Maximum = p.TotalCount;
-                            ScanProgress.Value = p.CurrentCount;
-                        }
-                    })));
-            }
-            catch (Exception ex)
-            {
-                ScanStatus.Text = "Scan failed: " + ex.Message;
-                RescanButton.IsEnabled = true;
-                return;
-            }
-
-            var visible = entries
-                .Where(e => !e.SystemComponent && !e.IsUpdate && e.UninstallerKind != UninstallerType.WindowsUpdate)
-                .ToList();
-            var largest = visible.Count == 0 ? 0 : visible.Max(e => e.EstimatedSize.GetKbSize());
-
-            _rows = visible.Select(e => new AppRow(e, largest)).OrderByDescending(r => r.SizeKb).ToList();
-            foreach (var r in _rows)
-                r.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(AppRow.IsSelected)) UpdateSelection(); };
-
-            _view = CollectionViewSource.GetDefaultView(_rows);
-            _view.Filter = o => Matches((AppRow)o);
-            AppList.ItemsSource = _view;
-
-            LoadDrives();
-            UpdateSelection();
-
-            ScanOverlay.Visibility = Visibility.Collapsed;
-            RescanButton.IsEnabled = true;
-            AppList.Focus();
+                ApplyRoundRegion();
+                // Added after WindowChrome's own hook, so it runs first (HwndSource calls newest hooks first).
+                HwndSource.FromHwnd(new WindowInteropHelper(this).Handle).AddHook(CornerHitTest);
+            };
         }
 
-        private static List<DriveInfo> FixedDrives() =>
-            DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.Fixed && d.IsReady).ToList();
-
-        private void LoadDrives()
+        private void Module_Changed(object sender, SelectionChangedEventArgs e)
         {
-            var drives = FixedDrives();
-            var items = new List<DriveItem> { DriveItem.All(drives, _rows.Count) };
-            items.AddRange(drives.Select(DriveItem.For));
-
-            var keep = _driveRoot ?? Root(new DriveInfo(Path.GetPathRoot(Environment.SystemDirectory)!));
-            DriveList.ItemsSource = items;
-            DriveList.SelectedItem = items.FirstOrDefault(i => i.Root == keep) ?? items[0];
+            if (ModuleList.SelectedItem is not RailItem item) return;
+            if (!_views.TryGetValue(item.Module.Id, out var view))
+                _views[item.Module.Id] = view = item.Module.CreateView(this);
+            ModuleHost.Content = view;
+            ModuleTitle.Text = item.Module.Title;
+            Motion.Enter(view);
         }
 
-        private static string Root(DriveInfo d) => d.Name.Substring(0, 2).ToUpperInvariant();
+        // ---- IHoloHost ----
 
-        private void Drive_Changed(object sender, SelectionChangedEventArgs e)
+        public void Navigate(string moduleId) =>
+            ModuleList.SelectedItem = _rail.FirstOrDefault(r => r.Module.Id == moduleId) ?? ModuleList.SelectedItem;
+
+        public bool Confirm(string title, string message) =>
+            MessageBox.Show(this, message, title, MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) == MessageBoxResult.Yes;
+
+        public void SetBadge(string moduleId, string text)
         {
-            if (DriveList.SelectedItem is not DriveItem item) return;
-            _driveRoot = item.Root;
-            _view?.Refresh();
-            UpdateCaption();
-            ShowOverview();
+            var item = _rail.FirstOrDefault(r => r.Module.Id == moduleId);
+            if (item != null) item.Badge = text;
         }
 
-        private void ShowOverview()
+        // ---- Window chrome ----
+
+        private System.Windows.Controls.Primitives.Popup _themePopup;
+        private void Theme_Click(object sender, RoutedEventArgs e)
         {
-            var drives = FixedDrives().Where(d => _driveRoot == null || Root(d) == _driveRoot).ToList();
-            var roots = drives.Select(Root).ToHashSet();
-            long totalKb = drives.Sum(d => d.TotalSize) / 1024, freeKb = drives.Sum(d => d.TotalFreeSpace) / 1024;
-            long usedKb = totalKb - freeKb;
-            var used = totalKb > 0 ? (double)usedKb / totalKb : 0;
-
-            DriveLabel.Text = _driveRoot == null ? $"All {drives.Count} drives" : $"Local disk {_driveRoot}";
-            DrivePct.Text = Math.Round(used * 100) + "%";
-            DriveFree.Text = AppRow.FormatKb(freeKb);
-            DriveUsed.Text = $"{AppRow.FormatKb(usedKb)} / {AppRow.FormatKb(totalKb)}";
-
-            // Ellipse dash lengths are in StrokeThickness units: circumference = π·(132 − 12) / 12.
-            var circ = Math.PI * (132 - 12) / 12;
-            DriveRing.StrokeDashArray = new DoubleCollection { used * circ, circ };
-
-            // Only apps whose install folder is on these drives count toward their used space.
-            var appsKb = _rows.Where(r => roots.Contains(r.Drive)).Sum(r => r.SizeKb);
-            var otherKb = Math.Max(0, usedKb - appsKb);
-            SplitTitle.Text = $"Where the {AppRow.FormatKb(usedKb)} went";
-            AppsTotal.Text = AppRow.FormatKb(appsKb);
-            OtherTotal.Text = AppRow.FormatKb(otherKb);
-            SplitApps.Width = new GridLength(Math.Max(appsKb, 1), GridUnitType.Star);
-            SplitOther.Width = new GridLength(Math.Max(otherKb, 1), GridUnitType.Star);
-
-            var unknown = _rows.Count(r => r.Drive == "?");
-            SplitNote.Text = appsKb > usedKb
-                ? "App sizes are installer estimates and overshoot here."
-                : unknown > 0 && _driveRoot == null ? $"{unknown} apps have no known install folder and aren't counted." : "";
+            _themePopup ??= BcuHolo.Themes.ThemePicker.Create(ThemeButton);
+            // Opens beside whichever button was clicked: below the caption icon, to the right of the rail button.
+            var anchor = (UIElement)sender;
+            _themePopup.PlacementTarget = anchor;
+            _themePopup.Placement = anchor == ThemeButton ? System.Windows.Controls.Primitives.PlacementMode.Bottom : System.Windows.Controls.Primitives.PlacementMode.Right;
+            _themePopup.IsOpen = !_themePopup.IsOpen;
         }
 
-        private bool Matches(AppRow r)
-        {
-            if (_driveRoot != null && r.Drive != _driveRoot) return false;
-            var q = SearchBox.Text.Trim();
-            if (q.Length > 0 && r.Name.IndexOf(q, StringComparison.OrdinalIgnoreCase) < 0
-                             && r.Publisher.IndexOf(q, StringComparison.OrdinalIgnoreCase) < 0)
-                return false;
-            if (FilterLarge.IsChecked == true) return r.SizeKb >= 1024 * 1024;
-            if (FilterMs.IsChecked == true) return r.Publisher.Contains("Microsoft", StringComparison.OrdinalIgnoreCase);
-            if (FilterStore.IsChecked == true) return r.Entry.UninstallerKind == UninstallerType.StoreApp;
-            return true;
-        }
-
-        private void UpdateCaption()
-        {
-            var shown = _view?.Cast<AppRow>().ToList() ?? new List<AppRow>();
-            var largest = shown.Count == 0 ? 0 : shown.Max(r => r.SizeKb);
-            foreach (var r in shown) r.SetScale(largest);
-            ListCaption.Text = $"· {shown.Count} · {AppRow.FormatKb(shown.Sum(r => r.SizeKb))} · sorted by size";
-        }
-
-        private void UpdateSelection()
-        {
-            var sel = _rows.Where(r => r.IsSelected).ToList();
-            SelectionBar.Visibility = sel.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-            SelCount.Text = $"{sel.Count} selected";
-            SelSize.Text = AppRow.FormatKb(sel.Sum(r => r.SizeKb));
-            UninstallButton.Content = $"Uninstall {sel.Count} + clean leftovers";
-        }
-
-        private void Search_Changed(object sender, TextChangedEventArgs e)
-        {
-            SearchHint.Visibility = SearchBox.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
-            _view?.Refresh();
-            UpdateCaption();
-        }
-
-        private void Filter_Changed(object sender, RoutedEventArgs e)
-        {
-            if (!IsInitialized) return;
-            _view?.Refresh();
-            UpdateCaption();
-        }
-
-        private void Row_Click(object sender, MouseButtonEventArgs e)
-        {
-            if (((FrameworkElement)sender).DataContext is AppRow r) r.IsSelected = !r.IsSelected;
-        }
-
-        private void List_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Space && AppList.SelectedItem is AppRow r)
-            {
-                r.IsSelected = !r.IsSelected;
-                e.Handled = true;
-            }
-        }
-
-        private void Clear_Click(object sender, RoutedEventArgs e)
-        {
-            foreach (var r in _rows) r.IsSelected = false;
-        }
-
-        private async void Rescan_Click(object sender, RoutedEventArgs e) => await ScanAsync();
+        private void Widget_Click(object sender, RoutedEventArgs e) => ((App)Application.Current).ToggleWidget();
 
         private void Min_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
         private void Max_Click(object sender, RoutedEventArgs e) =>
@@ -215,43 +106,74 @@ namespace BcuHolo
             var t = SystemParameters.WindowResizeBorderThickness;
             Frame.Margin = max ? new Thickness(t.Left + 4, t.Top + 4, t.Right + 4, t.Bottom + 4) : new Thickness(0);
             Frame.BorderThickness = new Thickness(max ? 0 : 1);
+            Frame.CornerRadius = new CornerRadius(max ? 0 : Radius);
             MaxButton.Content = max ? "" : "";
+        }
+
+        private const double CornerGrip = 24;      // DIP; must exceed the region's corner inset (~0.3 * Radius) to stay clickable
+        private const double CloseCornerGrip = 12; // DIP; top-right overlaps the Close button
+
+        /// <summary>
+        /// The rounded region clips away WindowChrome's 6px corner grips, leaving a sliver for diagonal resize.
+        /// Claim a generous square at each corner (inside the curve) as a corner hit; edges stay with WindowChrome.
+        /// </summary>
+        private IntPtr CornerHitTest(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            const int WM_NCHITTEST = 0x0084, HTTOPLEFT = 13, HTTOPRIGHT = 14, HTBOTTOMLEFT = 16, HTBOTTOMRIGHT = 17;
+            if (msg != WM_NCHITTEST || WindowState != WindowState.Normal || !GetWindowRect(hwnd, out var r)) return IntPtr.Zero;
+            int x = unchecked((short)(long)lParam), y = unchecked((short)((long)lParam >> 16));
+            var dpi = VisualTreeHelper.GetDpi(this);
+            int g = (int)Math.Round(CornerGrip * dpi.DpiScaleX);
+            bool left = x < r.Left + g, right = x >= r.Right - g, top = y < r.Top + g, bottom = y >= r.Bottom - g;
+            // Top-right sits on the Close button: keep that grip small so Close stays easy to hit.
+            int t = (int)Math.Round(CloseCornerGrip * dpi.DpiScaleX);
+            bool topRight = x >= r.Right - t && y < r.Top + t;
+            int hit = top && left ? HTTOPLEFT : topRight ? HTTOPRIGHT : bottom && left ? HTBOTTOMLEFT : bottom && right ? HTBOTTOMRIGHT : 0;
+            if (hit == 0) return IntPtr.Zero;
+            handled = true;
+            return new IntPtr(hit);
+        }
+
+        [StructLayout(LayoutKind.Sequential)] private struct RECT { public int Left, Top, Right, Bottom; }
+        [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
+        [DllImport("gdi32.dll")] private static extern IntPtr CreateRoundRectRgn(int x1, int y1, int x2, int y2, int w, int h);
+        [DllImport("user32.dll")] private static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool redraw);
+
+        /// <summary>
+        /// Windows 10 can't round top-level windows, so clip to a rounded region. The edge is aliased
+        /// (regions are 1-bit); the glass border drawn just inside it hides most of that.
+        /// Upgrade path on Windows 11: DwmSetWindowAttribute(DWMWA_WINDOW_CORNER_PREFERENCE) instead.
+        /// </summary>
+        private void ApplyRoundRegion()
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd == IntPtr.Zero) return;
+            if (WindowState == WindowState.Maximized)
+            {
+                SetWindowRgn(hwnd, IntPtr.Zero, true);
+                return;
+            }
+            var dpi = VisualTreeHelper.GetDpi(this);
+            int w = (int)Math.Round(ActualWidth * dpi.DpiScaleX), h = (int)Math.Round(ActualHeight * dpi.DpiScaleY);
+            int d = (int)Math.Round(Radius * 2 * dpi.DpiScaleX);
+            // The system owns the region after SetWindowRgn; don't delete it.
+            SetWindowRgn(hwnd, CreateRoundRectRgn(0, 0, w + 1, h + 1, d, d), true);
         }
     }
 
-    /// <summary>One card in the Drives rail.</summary>
-    public sealed class DriveItem
+    /// <summary>Rail entry wrapper so badges can update live.</summary>
+    public sealed class RailItem : INotifyPropertyChanged
     {
-        public string Root { get; private init; }
-        public string Title { get; private init; }
-        public string Detail { get; private init; }
-        public GridLength UsedFill { get; private init; }
-        public GridLength UsedRest { get; private init; }
-        public Brush BarBrush { get; private init; }
-
-        public static DriveItem All(IReadOnlyCollection<DriveInfo> drives, int apps) =>
-            Make(null, "All drives", $"{apps} apps", drives.Sum(d => d.TotalSize), drives.Sum(d => d.TotalFreeSpace));
-
-        public static DriveItem For(DriveInfo d)
+        private string _badge;
+        public RailItem(IHoloModule m) => Module = m;
+        public IHoloModule Module { get; }
+        public string Title => Module.Title;
+        public string Glyph => Module.Glyph;
+        public string Badge
         {
-            var label = string.IsNullOrWhiteSpace(d.VolumeLabel) ? "Local disk" : d.VolumeLabel;
-            return Make(d.Name.Substring(0, 2).ToUpperInvariant(), $"{d.Name.Substring(0, 2)} {label}",
-                $"{AppRow.FormatKb(d.TotalFreeSpace / 1024)} free", d.TotalSize, d.TotalFreeSpace);
+            get => _badge;
+            set { _badge = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Badge))); }
         }
-
-        private static DriveItem Make(string root, string title, string detail, long total, long free)
-        {
-            var used = total > 0 ? (double)(total - free) / total : 0;
-            return new DriveItem
-            {
-                Root = root,
-                Title = title,
-                Detail = detail,
-                UsedFill = new GridLength(Math.Max(used, 0.01), GridUnitType.Star),
-                UsedRest = new GridLength(Math.Max(1 - used, 0.01), GridUnitType.Star),
-                // Nearly-full drives turn orange so they stand out in the rail.
-                BarBrush = (Brush)Application.Current.Resources[used >= 0.9 ? "Danger" : "Accent"],
-            };
-        }
+        public event PropertyChangedEventHandler PropertyChanged;
     }
 }

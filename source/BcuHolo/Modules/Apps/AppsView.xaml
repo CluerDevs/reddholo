@@ -1,0 +1,356 @@
+<UserControl x:Class="BcuHolo.Modules.Apps.AppsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Foreground="{DynamicResource Text}">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="210"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Drives -->
+        <DockPanel Margin="0,4,0,24">
+            <Button x:Name="RescanButton" DockPanel.Dock="Bottom" Margin="0,12,0,0" Style="{StaticResource AccentGlass}" Click="Rescan_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE72C;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <TextBlock Text="Rescan"/>
+                    </StackPanel>
+                </Button>
+            <TextBlock DockPanel.Dock="Top" Style="{StaticResource Caps}" Text="Drives" Margin="10,0,0,10"/>
+            <ListBox x:Name="DriveList" Background="Transparent" BorderThickness="0" SelectionChanged="Drive_Changed"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Drives">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Margin" Value="0,0,0,8"/>
+                            <Setter Property="Cursor" Value="Hand"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="c" CornerRadius="12" BorderThickness="1" BorderBrush="Transparent" Background="Transparent" Padding="12,10">
+                                            <ContentPresenter/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="c" Property="Background" Value="#08FFFFFF"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="c" Property="Background" Value="{DynamicResource AccentSoft}"/>
+                                                <Setter TargetName="c" Property="BorderBrush" Value="{DynamicResource Accent.4D}"/>
+                                            </Trigger>
+                                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                                <Setter TargetName="c" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding Detail}" FontFamily="{DynamicResource Mono}" FontSize="12" Foreground="{DynamicResource Muted}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="{DynamicResource Text}"/>
+                                </DockPanel>
+                                <Grid Height="4" Margin="0,8,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="{Binding UsedFill}"/>
+                                        <ColumnDefinition Width="{Binding UsedRest}"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.ColumnSpan="2" CornerRadius="2" Background="{DynamicResource Track}"/>
+                                    <Border CornerRadius="2">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="{DynamicResource Accent}"/>
+                                                <Style.Triggers><DataTrigger Binding="{Binding Full}" Value="True"><Setter Property="Background" Value="{DynamicResource Danger}"/></DataTrigger></Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                    </Border>
+                                </Grid>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+        </DockPanel>
+
+        <!-- Main -->
+        <Grid Grid.Column="1" Margin="24,0,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Overview cards -->
+            <Grid Margin="0,0,0,24">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="20"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel Orientation="Horizontal">
+                        <Grid Width="132" Height="132">
+                            <Ellipse Stroke="{DynamicResource Track}" StrokeThickness="12"/>
+                            <!-- Dash units are multiples of StrokeThickness; set from code -->
+                            <Ellipse x:Name="DriveRing" Stroke="{DynamicResource Accent}" StrokeThickness="12"
+                                     StrokeDashCap="Round" RenderTransformOrigin="0.5,0.5">
+                                <Ellipse.RenderTransform><RotateTransform Angle="-90"/></Ellipse.RenderTransform>
+                                <Ellipse.Effect><DropShadowEffect Color="{DynamicResource Accent.C}" BlurRadius="18" ShadowDepth="0" Opacity="0.55"/></Ellipse.Effect>
+                            </Ellipse>
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <TextBlock x:Name="DrivePct" Text="—" FontFamily="{DynamicResource Display}" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock Text="used" Foreground="{DynamicResource Muted}" FontSize="12" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+                        <StackPanel Margin="24,0,0,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="DriveLabel" Style="{StaticResource Caps}" Text="Local disk C:"/>
+                            <TextBlock Margin="0,4,0,4" FontFamily="{DynamicResource Display}" FontSize="34" FontWeight="Bold">
+                                <Run x:Name="DriveFree" Text="—"/><Run Text=" free" FontSize="16" FontWeight="Normal" Foreground="{DynamicResource Muted}"/>
+                            </TextBlock>
+                            <TextBlock x:Name="DriveUsed" FontFamily="{DynamicResource Mono}" FontSize="13" Foreground="{DynamicResource Muted}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="2" Style="{StaticResource Card}">
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock x:Name="SplitTitle" Style="{StaticResource Caps}" Text="Where the used space went"/>
+                        <Grid Height="14" Margin="0,14,0,14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition x:Name="SplitApps" Width="1*"/>
+                                <ColumnDefinition Width="3"/>
+                                <ColumnDefinition x:Name="SplitWsl" Width="0*"/>
+                                <ColumnDefinition Width="3"/>
+                                <ColumnDefinition x:Name="SplitSys" Width="0*"/>
+                                <ColumnDefinition Width="3"/>
+                                <ColumnDefinition x:Name="SplitOther" Width="2*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Background="{DynamicResource Accent}" CornerRadius="4"/>
+                            <Border Grid.Column="2" Background="{DynamicResource Wsl}" CornerRadius="4"/>
+                            <Border Grid.Column="4" Background="{DynamicResource SysFiles}" CornerRadius="4"/>
+                            <Border Grid.Column="6" Background="{DynamicResource Other}" CornerRadius="4"/>
+                        </Grid>
+                        <WrapPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,24,4">
+                                <Border Width="10" Height="10" CornerRadius="3" Background="{DynamicResource Accent}" Margin="0,0,8,0"/>
+                                <TextBlock>Installed apps <Run x:Name="AppsTotal" FontFamily="{DynamicResource Mono}" FontWeight="Bold" Text="—"/></TextBlock>
+                            </StackPanel>
+                            <StackPanel x:Name="WslLegend" Orientation="Horizontal" Margin="0,0,24,4">
+                                <Border Width="10" Height="10" CornerRadius="3" Background="{DynamicResource Wsl}" Margin="0,0,8,0"/>
+                                <TextBlock>WSL disks <Run x:Name="WslTotal" FontFamily="{DynamicResource Mono}" FontWeight="Bold" Text="—"/></TextBlock>
+                            </StackPanel>
+                            <StackPanel x:Name="SysLegend" Orientation="Horizontal" Margin="0,0,24,4">
+                                <Border Width="10" Height="10" CornerRadius="3" Background="{DynamicResource SysFiles}" Margin="0,0,8,0"/>
+                                <TextBlock>Hibernate &amp; pagefile <Run x:Name="SysTotal" FontFamily="{DynamicResource Mono}" FontWeight="Bold" Text="—"/></TextBlock>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <Border Width="10" Height="10" CornerRadius="3" Background="{DynamicResource Other}" BorderBrush="{DynamicResource Muted}" BorderThickness="1" Margin="0,0,8,0"/>
+                                <TextBlock>Files, caches, everything else <Run x:Name="OtherTotal" FontFamily="{DynamicResource Mono}" FontWeight="Bold" Text="—"/></TextBlock>
+                            </StackPanel>
+                        </WrapPanel>
+                        <TextBlock x:Name="SplitNote" Margin="0,6,0,0" FontSize="12" Foreground="{DynamicResource Muted}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Toolbar -->
+            <DockPanel Grid.Row="1" Margin="0,0,0,14">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Border CornerRadius="12" Background="{DynamicResource GlassFill}" BorderBrush="{DynamicResource GlassLine}" BorderThickness="1" Width="210" Height="44" Padding="14,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="&#xE721;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBlock x:Name="SearchHint" Grid.Column="1" Text="Search apps, publishers…" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" IsHitTestVisible="False"/>
+                            <TextBox x:Name="SearchBox" Grid.Column="1" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource Text}" CaretBrush="{DynamicResource Accent}"
+                                     VerticalAlignment="Center" FontSize="14" TextChanged="Search_Changed" AutomationProperties.Name="Search apps"/>
+                        </Grid>
+                    </Border>
+                    <RadioButton x:Name="FilterAll" Style="{StaticResource Chip}" Content="All" IsChecked="True" GroupName="f" Checked="Filter_Changed"/>
+                    <RadioButton x:Name="FilterLarge" Style="{StaticResource Chip}" Content="Over 1 GB" GroupName="f" Checked="Filter_Changed"/>
+                    <RadioButton x:Name="FilterMs" Style="{StaticResource Chip}" Content="Microsoft" GroupName="f" Checked="Filter_Changed"/>
+                    <RadioButton x:Name="FilterStore" Style="{StaticResource Chip}" Content="Store apps" GroupName="f" Checked="Filter_Changed"/>
+                </StackPanel>
+                <TextBlock VerticalAlignment="Center" FontFamily="{DynamicResource Display}" FontSize="26" FontWeight="Bold" TextTrimming="CharacterEllipsis">
+                    Installed apps <Run x:Name="ListCaption" FontSize="15" FontWeight="Normal" Foreground="{DynamicResource Muted}" Text=""/>
+                </TextBlock>
+            </DockPanel>
+
+            <!-- List -->
+            <Border Grid.Row="2" CornerRadius="18,18,0,0" Background="{DynamicResource GlassFill}" BorderBrush="{DynamicResource GlassLine}" BorderThickness="1,1,1,0">
+                <ListBox x:Name="AppList" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource Text}"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch"
+                         VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                         VirtualizingPanel.ScrollUnit="Pixel" SelectionMode="Single" KeyDown="List_KeyDown"
+                         AutomationProperties.Name="Installed apps">
+                    <ListBox.Resources>
+                        <!-- Thin glass scrollbar (vertical only; horizontal is disabled on this list) -->
+                        <Style TargetType="ScrollBar">
+                            <Setter Property="Width" Value="12"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ScrollBar">
+                                        <Track x:Name="PART_Track" IsDirectionReversed="True" Margin="0,8">
+                                            <Track.DecreaseRepeatButton>
+                                                <RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0" Focusable="False"/>
+                                            </Track.DecreaseRepeatButton>
+                                            <Track.IncreaseRepeatButton>
+                                                <RepeatButton Command="ScrollBar.PageDownCommand" Opacity="0" Focusable="False"/>
+                                            </Track.IncreaseRepeatButton>
+                                            <Track.Thumb>
+                                                <Thumb>
+                                                    <Thumb.Template>
+                                                        <ControlTemplate TargetType="Thumb">
+                                                            <Border x:Name="t" CornerRadius="3" Width="6" Background="{DynamicResource Line.33}"/>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="t" Property="Background" Value="{DynamicResource Accent}"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Thumb.Template>
+                                                </Thumb>
+                                            </Track.Thumb>
+                                        </Track>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.Resources>
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="r" Background="Transparent" BorderBrush="{DynamicResource RowLine}" BorderThickness="0,0,0,1">
+                                            <ContentPresenter/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="r" Property="Background" Value="{DynamicResource Accent.0F}"/>
+                                            </Trigger>
+                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                <Setter TargetName="r" Property="Background" Value="{DynamicResource DangerSoft}"/>
+                                            </DataTrigger>
+                                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                                <Setter TargetName="r" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                                                <Setter TargetName="r" Property="BorderThickness" Value="1"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Height="60" Margin="20,0" Background="Transparent" MouseLeftButtonUp="Row_Click">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="40"/>
+                                    <ColumnDefinition Width="54"/>
+                                    <ColumnDefinition Width="2.2*"/>
+                                    <ColumnDefinition Width="140"/>
+                                    <ColumnDefinition Width="1.6*"/>
+                                    <ColumnDefinition Width="96"/>
+                                </Grid.ColumnDefinitions>
+                                <!-- Custom checkbox: orange = marked for removal -->
+                                <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" VerticalAlignment="Center" Focusable="False" Cursor="Hand"
+                                          AutomationProperties.Name="{Binding Name, StringFormat=Select {0}}">
+                                    <CheckBox.Template>
+                                        <ControlTemplate TargetType="CheckBox">
+                                            <Border x:Name="box" Width="20" Height="20" CornerRadius="6" BorderThickness="1.5" BorderBrush="{DynamicResource Muted}" Background="Transparent">
+                                                <Path x:Name="tick" Data="M3.5,9.5 L7.5,13.5 L15.5,5.5" Stroke="{DynamicResource OnDanger}" StrokeThickness="2.2"
+                                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" Visibility="Collapsed"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="box" Property="BorderBrush" Value="{DynamicResource Accent}"/>
+                                                </Trigger>
+                                                <Trigger Property="IsChecked" Value="True">
+                                                    <Setter TargetName="box" Property="Background" Value="{DynamicResource Danger}"/>
+                                                    <Setter TargetName="box" Property="BorderBrush" Value="{DynamicResource Danger}"/>
+                                                    <Setter TargetName="tick" Property="Visibility" Value="Visible"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </CheckBox.Template>
+                                </CheckBox>
+                                <Border Grid.Column="1" Width="40" Height="40" CornerRadius="11" Background="{DynamicResource Tile}" BorderBrush="{DynamicResource Accent.40}" BorderThickness="1" HorizontalAlignment="Left">
+                                    <Grid>
+                                        <TextBlock x:Name="ini" Visibility="Collapsed" Text="{Binding Initials}" FontFamily="{DynamicResource Display}" FontWeight="Bold" Foreground="{DynamicResource Accent}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        <Image Source="{Binding Icon}" Width="24" Height="24"/>
+                                    </Grid>
+                                </Border>
+                                <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,0,14,0">
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding Publisher}" Foreground="{DynamicResource Muted}" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Border CornerRadius="6" Background="{DynamicResource AccentSoft}" Padding="7,3" Margin="0,0,6,0">
+                                        <TextBlock Text="{Binding Drive}" FontFamily="{DynamicResource Mono}" FontSize="12" Foreground="{DynamicResource Accent}"/>
+                                    </Border>
+                                    <Border x:Name="kind" CornerRadius="999" Background="#0FFFFFFF" Padding="10,3">
+                                        <TextBlock Text="{Binding Kind}" FontSize="12" Foreground="{DynamicResource Text}"/>
+                                    </Border>
+                                </StackPanel>
+                                <Grid Grid.Column="4" Height="8" VerticalAlignment="Center" Margin="0,0,14,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="{Binding BarFill}"/>
+                                        <ColumnDefinition Width="{Binding BarRest}"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.ColumnSpan="2" CornerRadius="4" Background="{DynamicResource Track}"/>
+                                    <Border x:Name="bar" CornerRadius="4" Background="{DynamicResource Accent}"/>
+                                </Grid>
+                                <TextBlock Grid.Column="5" Text="{Binding SizeText}" FontFamily="{DynamicResource Mono}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            </Grid>
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding Icon}" Value="{x:Null}">
+                                    <Setter TargetName="ini" Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Kind}" Value="{x:Null}">
+                                    <Setter TargetName="kind" Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                    <Setter TargetName="bar" Property="Background" Value="{DynamicResource Danger}"/>
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Border>
+
+            <!-- Scan progress -->
+            <Border x:Name="ScanOverlay" Grid.Row="2" Background="{DynamicResource Bg.E6}" CornerRadius="18,18,0,0">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="420">
+                    <TextBlock x:Name="OverlayTitle" Text="Scanning installed apps…" FontFamily="{DynamicResource Display}" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/>
+                    <ProgressBar x:Name="ScanProgress" Height="4" Margin="0,18,0,10" Foreground="{DynamicResource Accent}" Background="{DynamicResource Track}" BorderThickness="0" IsIndeterminate="True"/>
+                    <TextBlock x:Name="ScanStatus" Foreground="{DynamicResource Muted}" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    <Button x:Name="StopButton" Style="{StaticResource Ghost}" Content="Stop" Click="Stop_Click" Margin="0,16,0,0" HorizontalAlignment="Center" Visibility="Collapsed"/>
+                </StackPanel>
+            </Border>
+
+
+            <!-- Selection bar -->
+            <Border x:Name="SelectionBar" Grid.Row="2" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,22"
+                    Background="{DynamicResource Tile.EB}" BorderBrush="{DynamicResource Accent.59}" BorderThickness="1" CornerRadius="18" Padding="24,14,16,14" Visibility="Collapsed">
+                <Border.Effect><DropShadowEffect Color="Black" BlurRadius="40" ShadowDepth="10" Opacity="0.6"/></Border.Effect>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock x:Name="SelCount" VerticalAlignment="Center" FontSize="15"/>
+                    <TextBlock VerticalAlignment="Center" Margin="20,0" FontFamily="{DynamicResource Display}" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource Accent}">
+                        <Run x:Name="SelSize"/><Run Text=" reclaimable" FontSize="14" FontWeight="Normal" Foreground="{DynamicResource Muted}"/>
+                    </TextBlock>
+                    <CheckBox x:Name="DryRun" Content="Dry run" VerticalAlignment="Center" VerticalContentAlignment="Center" Margin="0,0,16,0"
+                              Foreground="{DynamicResource Muted}" FontSize="14" ToolTip="Walk through the whole flow without removing anything"/>
+                    <Button Style="{StaticResource Ghost}" Content="Clear" Click="Clear_Click" Margin="0,0,10,0"/>
+                    <Button x:Name="UninstallButton" Style="{StaticResource Primary}" Click="Uninstall_Click"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

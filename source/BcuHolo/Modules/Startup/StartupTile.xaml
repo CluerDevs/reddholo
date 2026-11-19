@@ -1,0 +1,12 @@
+<Border x:Class="BcuHolo.Modules.Startup.StartupTile"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Style="{StaticResource DashTile}">
+    <StackPanel TextElement.Foreground="{DynamicResource Text}">
+        <TextBlock Style="{StaticResource Caps}" Text="STARTUP"/>
+        <TextBlock x:Name="CountText" Margin="0,6,0,10" FontFamily="{DynamicResource Display}" FontSize="34" FontWeight="Bold"/>
+        <StackPanel x:Name="ListPanel"/>
+        <TextBlock x:Name="StatusText" Margin="0,8,0,0" FontSize="13" Foreground="{DynamicResource Muted}" TextWrapping="Wrap"/>
+        <Button Style="{StaticResource Ghost}" Content="Manage startup" Margin="0,14,0,0" HorizontalAlignment="Left" Click="Manage_Click"/>
+    </StackPanel>
+</Border>

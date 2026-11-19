@@ -7,10 +7,19 @@
 		<Product>BCU Holo</Product>
 		<UseWPF>true</UseWPF>
 		<Nullable>disable</Nullable>
+		<ApplicationIcon>holo.ico</ApplicationIcon>
 	</PropertyGroup>
 
 	<ItemGroup>
+		<Resource Include="holo.ico" />
+		<!-- PawnIO installer, shipped unmodified (GPL-2.0); only run from the Sensors page button after a hash check. -->
+		<None Include="ThirdParty\PawnIO\**" CopyToOutputDirectory="PreserveNewest" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />
 		<ProjectReference Include="..\UninstallTools\UninstallTools.csproj" />
 		<ProjectReference Include="..\KlocTools\KlocTools.csproj" />
+		<ProjectReference Include="..\BcuHolo.Plugins\BcuHolo.Plugins.csproj" />
 	</ItemGroup>
 </Project>
