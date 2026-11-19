@@ -84,6 +84,17 @@ namespace BcuHolo.Modules.Gpu
         public bool SavedWasActive { get; private set; }
         public bool Dirty { get; private set; }
         public bool Afterburner { get; private set; }
+
+        /// <summary>
+        /// Set by GpuView while it is on screen. The Afterburner check snapshots every process, and only that page shows
+        /// or acts on it (all Apply actions live there), so it is skipped otherwise.
+        /// </summary>
+        internal bool ViewOpen
+        {
+            get => _viewOpen;
+            set { _viewOpen = value; if (value) Afterburner = IsAfterburnerRunning(); }
+        }
+        private volatile bool _viewOpen;
         public string Warning { get; private set; } = "";
         public string Status { get; private set; } = "";
 
@@ -155,7 +166,7 @@ namespace BcuHolo.Modules.Gpu
         private void TickCore()
         {
             if (_shutDown) return;
-            if (_tick++ % 3 == 0) Afterburner = IsAfterburnerRunning();
+            if (_tick++ % 3 == 0 && _viewOpen) Afterburner = IsAfterburnerRunning();
             if (_dev == null) { RaiseChanged(); return; }
 
             bool bad = false;

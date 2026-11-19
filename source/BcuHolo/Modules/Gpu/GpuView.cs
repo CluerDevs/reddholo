@@ -363,6 +363,8 @@ namespace BcuHolo.Modules.Gpu
             // Subscribe only while on screen so a discarded view isn't kept alive by the model.
             Loaded += (_, _) => { m.Changed -= Refresh; m.Changed += Refresh; Refresh(); };
             Unloaded += (_, _) => m.Changed -= Refresh;
+            // Afterburner is re-checked on show; refresh so the Apply buttons reflect it straight away.
+            IsVisibleChanged += (_, _) => { m.ViewOpen = IsVisible; if (IsVisible) Refresh(); };
             ApplyCompact(File.Exists(CompactMarker), save: false);
             unavailCard.Visibility = m.Available ? Visibility.Collapsed : Visibility.Visible;
             _content.Visibility = m.Available ? Visibility.Visible : Visibility.Collapsed;
