@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Windows;
 using System.Windows.Threading;
 using BcuHolo.Plugins;
@@ -100,6 +101,17 @@ namespace BcuHolo.Modules.Gpu
 
         public event Action Changed;
 
+        /// <summary>
+        /// Readers of <see cref="Current"/> that don't subscribe to Changed (dashboard poll, widget) hold demand while they
+        /// read. Static so callers can register before the model starts. Without demand, a subscriber or an active curve,
+        /// the tick makes no NVML calls (lets an idle dGPU power down).
+        /// </summary>
+        private static int _demand;
+        internal static void Want(bool on)
+        {
+            if (Interlocked.Add(ref _demand, on ? 1 : -1) == 1 && on) Current?._timer?.Change(0, 1000); // fresh values now, not up to 1 s stale
+        }
+
         private int _cur = -1, _lastSent = -1, _fails, _tick;
         private double _anchor;
 
@@ -141,7 +153,8 @@ namespace BcuHolo.Modules.Gpu
             }
             if (Application.Current != null) Application.Current.Exit += (_, _) => Shutdown();
             AppDomain.CurrentDomain.ProcessExit += (_, _) => Shutdown();
-            _timer = new System.Threading.Timer(_ => Tick(), null, 0, 1000);
+            // No NVIDIA device: nothing to poll; the ViewOpen setter does the Afterburner check when the page opens.
+            if (_dev != null) _timer = new System.Threading.Timer(_ => Tick(), null, 0, 1000);
         }
 
         // ---- Polling + curve engine ----
@@ -149,6 +162,7 @@ namespace BcuHolo.Modules.Gpu
         /// <summary>Changed is for the UI; the engine may raise it from a pool thread.</summary>
         private void RaiseChanged()
         {
+            if (Changed == null) return; // no UI listening: skip the dispatcher post
             var d = Application.Current?.Dispatcher;
             if (d == null || d.CheckAccess()) Changed?.Invoke();
             else d.BeginInvoke(new Action(() => Changed?.Invoke()));
@@ -167,6 +181,7 @@ namespace BcuHolo.Modules.Gpu
         {
             if (_shutDown) return;
             if (_tick++ % 3 == 0 && _viewOpen) Afterburner = IsAfterburnerRunning();
+            if (!CurveActive && Changed == null && Volatile.Read(ref _demand) == 0) return; // nobody reading: skip NVML
             if (_dev == null) { RaiseChanged(); return; }
 
             bool bad = false;

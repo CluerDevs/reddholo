@@ -81,7 +81,7 @@ namespace BcuHolo.Widget
             MouseRightButtonUp += (_, _) => { ContextMenu = BuildMenu(); ContextMenu.IsOpen = true; };
             Activated += (_, _) => SendToBackIfPinned();
             SourceInitialized += (_, _) => SendToBackIfPinned();
-            Closed += (_, _) => { _timer.Stop(); SensorHub.Unsubscribe(_onSensors); _tel.Dispose(); _s.Save(); };
+            Closed += (_, _) => { _timer.Stop(); WantGpu(false); SensorHub.Unsubscribe(_onSensors); _tel.Dispose(); _s.Save(); };
 
             Migrate();
             Rebuild();
@@ -146,6 +146,7 @@ namespace BcuHolo.Widget
             if (Has("Fans") || Has("Drive")) halves.Add(w => new CoolingPart(w, Has("Fans"), Has("Drive")));
             if (Has("Net") || Has("Disk")) halves.Add(w => new IoPart(w, Has("Net"), Has("Disk")));
             _tel.WantIo(Has("Net"), Has("Disk"), Has("Whea"));
+            WantGpu(Has("GpuDial") || Has("Clocks") || Has("Power") || Has("Vram") || Has("Fans") || sparks.Any(d => d.Id.StartsWith("SparkGpu")));
 
             var root = new StackPanel();
             if (Has("Header")) root.Children.Add(Track(new HeaderPart()));
@@ -185,6 +186,15 @@ namespace BcuHolo.Widget
 
             _content.Child = root;
             Refresh();
+        }
+
+        private bool _wantGpu;
+        /// <summary>Holds GpuModel polling demand while the layout shows GPU readings; balanced across Rebuild and Closed.</summary>
+        private void WantGpu(bool on)
+        {
+            if (on == _wantGpu) return;
+            _wantGpu = on;
+            BcuHolo.Modules.Gpu.GpuModel.Want(on);
         }
 
         private FrameworkElement Track(Part p) { _parts.Add(p); return p.Root; }

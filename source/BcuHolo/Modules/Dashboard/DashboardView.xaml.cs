@@ -75,6 +75,7 @@ namespace BcuHolo.Modules.Dashboard
             {
                 if (_window != null) _window.StateChanged -= Gate;
                 _window = null;
+                if (_timer.IsEnabled) BcuHolo.Modules.Gpu.GpuModel.Want(false);
                 _timer.Stop(); // no polling while another page is shown
             };
             // Hide() (window closed with the widget open) does not unload the view; minimizing does not hide it.
@@ -89,6 +90,7 @@ namespace BcuHolo.Modules.Dashboard
             bool on = IsLoaded && IsVisible && _window?.WindowState != WindowState.Minimized;
             if (on == _timer.IsEnabled) return;
             _timer.IsEnabled = on;
+            BcuHolo.Modules.Gpu.GpuModel.Want(on); // the poll reads GpuModel.Current
             if (on) _ = PollAsync();
         }
 
