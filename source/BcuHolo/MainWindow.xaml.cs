@@ -70,7 +70,9 @@ namespace BcuHolo
                 }
                 ApplyRoundRegion();
                 // Added after WindowChrome's own hook, so it runs first (HwndSource calls newest hooks first).
-                HwndSource.FromHwnd(new WindowInteropHelper(this).Handle).AddHook(CornerHitTest);
+                var src = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
+                src.AddHook(CornerHitTest);
+                src.AddHook(HoldPageDuringDrag);
             };
         }
 
@@ -151,6 +153,31 @@ namespace BcuHolo
             if (hit == 0) return IntPtr.Zero;
             handled = true;
             return new IntPtr(hit);
+        }
+
+        /// <summary>
+        /// Edge-drag resize: hold the page at its current size until the drag ends, so each resize step only re-lays out
+        /// the frame and rail; the page re-flows once on release. (Pages cost 30-80 ms per re-layout; at 60 steps a
+        /// second that was the choppiness.) Also fires for title-bar moves, where the size doesn't change anyway.
+        /// </summary>
+        private IntPtr HoldPageDuringDrag(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            const int WM_ENTERSIZEMOVE = 0x0231, WM_EXITSIZEMOVE = 0x0232;
+            if (msg == WM_ENTERSIZEMOVE && ModuleHost.ActualWidth > 0)
+            {
+                ModuleHost.Width = ModuleHost.ActualWidth;
+                ModuleHost.Height = ModuleHost.ActualHeight;
+                ModuleHost.HorizontalAlignment = HorizontalAlignment.Left; // anchored, clipped when the window shrinks
+                ModuleHost.VerticalAlignment = VerticalAlignment.Top;
+            }
+            else if (msg == WM_EXITSIZEMOVE)
+            {
+                ModuleHost.ClearValue(WidthProperty);
+                ModuleHost.ClearValue(HeightProperty);
+                ModuleHost.ClearValue(HorizontalAlignmentProperty);
+                ModuleHost.ClearValue(VerticalAlignmentProperty);
+            }
+            return IntPtr.Zero;
         }
 
         [StructLayout(LayoutKind.Sequential)] private struct RECT { public int Left, Top, Right, Bottom; }
