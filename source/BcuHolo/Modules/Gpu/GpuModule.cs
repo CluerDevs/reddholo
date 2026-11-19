@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -63,6 +64,7 @@ namespace BcuHolo.Modules.Gpu
             panel.Children.Add(preview);
             panel.Children.Add(button);
 
+            double[] shownT = null, shownF = null;
             void Refresh()
             {
                 if (!m.Available)
@@ -77,15 +79,25 @@ namespace BcuHolo.Modules.Gpu
                 temp.Text = Ui.TempText(m);
                 fan.Text = Ui.FanText(m, false);
                 power.Text = Ui.Watts(m.PowerW) + " / " + Ui.Watts(m.LimitW);
-                var pts = new PointCollection();
+                // The curve only changes on edit (arrays are mutated in place); don't rebuild the geometry every tick.
+                if (shownT != null && shownT.AsSpan().SequenceEqual(m.T) && shownF.AsSpan().SequenceEqual(m.F)) return;
+                shownT = (double[])m.T.Clone();
+                shownF = (double[])m.F.Clone();
+                var pts = new PointCollection(m.T.Length);
                 for (int i = 0; i < m.T.Length; i++)
                     pts.Add(new Point((m.T[i] - GpuModel.TempMin) / (GpuModel.TempMax - GpuModel.TempMin) * PW,
                         PH - (m.F[i] - GpuModel.FanMin) / (GpuModel.FanMax - GpuModel.FanMin) * PH));
                 line.Points = pts;
             }
-            m.Changed += Refresh;
             Refresh();
-            return new Border { Style = Ui.R<Style>("DashTile"), Child = panel };
+            var border = new Border { Style = Ui.R<Style>("DashTile"), Child = panel };
+            // Listen only while on screen: IsVisible drops when the page is left, the window hidden, or the tile discarded.
+            border.IsVisibleChanged += (_, _) =>
+            {
+                m.Changed -= Refresh;
+                if (border.IsVisible) { m.Changed += Refresh; Refresh(); }
+            };
+            return border;
         }
     }
 }
