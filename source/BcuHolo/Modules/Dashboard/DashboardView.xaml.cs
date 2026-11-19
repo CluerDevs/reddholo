@@ -33,7 +33,8 @@ namespace BcuHolo.Modules.Dashboard
         private int _pollCount;
         private List<NameSize> _top = new();
         private int _procCount;
-        private NvidiaSmi _smi; // name, driver and VRAM only; refreshed every 30 s
+        private NvidiaSmi _smi; // with NVML: name and driver only, read once; without NVML: the live source
+        private bool _smiFailed;
 
         public DashboardView(IHoloHost host, IEnumerable<IHoloModule> modules)
         {
@@ -116,17 +117,25 @@ namespace BcuHolo.Modules.Dashboard
             {
                 var cpu = CpuLoad();
                 var mem = MemoryStatus();
-                // Process scan every 10 s; nvidia-smi only every 30 s for name/driver/VRAM (live GPU numbers come from NVML).
+                // Process scan every 10 s. Live GPU numbers (VRAM included) come from NVML, so nvidia-smi runs once
+                // for name/driver; it is only polled when NVML is unavailable, and backs off to 30 s after a failure.
                 if (_pollCount % 5 == 0) (_top, _procCount) = await Task.Run(TopProcesses);
                 var gm = BcuHolo.Modules.Gpu.GpuModel.Current;
-                if (_smi == null || _pollCount % 15 == 0 || gm == null || !gm.Available) _smi = await Task.Run(NvidiaSmi.Query) ?? _smi;
+                bool nvml = gm != null && gm.Available;
+                if ((_smi == null || !nvml) && (!_smiFailed || _pollCount % 15 == 0))
+                {
+                    var r = await Task.Run(NvidiaSmi.Query);
+                    _smiFailed = r == null;
+                    _smi = r ?? _smi;
+                }
                 _pollCount++;
                 var gpu = _smi;
-                if (gpu != null && gm != null && gm.Available && gm.Temp >= 0)
+                if (gpu != null && nvml && gm.Temp >= 0)
                 {
                     gpu.Temp = gm.Temp; gpu.Util = gm.Load; gpu.Power = gm.PowerW; gpu.PowerLimit = gm.LimitW;
                     gpu.Fan = gm.Fans.Length > 0 ? gm.Fans.Average() : double.NaN;
                 }
+                if (gpu != null && nvml && gm.VramUsedMB >= 0 && gm.VramTotalMB > 0) { gpu.MemUsed = gm.VramUsedMB; gpu.MemTotal = gm.VramTotalMB; }
                 var top = _top;
                 var procCount = _procCount;
                 if (BcuHolo.Modules.Sensors.SensorHub.TryGet("", "CPU Package", "°C", out var pkg) && pkg > 0)
