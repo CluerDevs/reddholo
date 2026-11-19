@@ -16,7 +16,9 @@ namespace BcuHolo
     /// <summary>Shell: rail of modules, caption buttons, rounded frame. Each module owns its own page.</summary>
     public partial class MainWindow : Window, IHoloHost
     {
-        private const double Radius = 16;
+        // Windows 11 rounds the window in the compositor; Windows 10 needs a window region (see ApplyRoundRegion).
+        private static readonly bool DwmCorners = Environment.OSVersion.Version.Build >= 22000;
+        private static readonly double Radius = DwmCorners ? 8 : 16; // 8 = DWM's own corner radius, so the frame line follows the clip
 
         // Built-in modules. External plugins will be appended here by the loader (later phase).
         private readonly List<IHoloModule> _modules;
@@ -37,6 +39,7 @@ namespace BcuHolo
                 new BcuHolo.Modules.Sensors.SensorsModule(),
             };
             InitializeComponent();
+            FitMaximized(); // applies Radius to the frame
             _rail = _modules.OrderBy(m => m.Order).Select(m => new RailItem(m)).ToList();
             ModuleList.ItemsSource = _rail;
             // The widget reads the GPU engine even when this window is never shown (--widget at logon).
@@ -56,9 +59,15 @@ namespace BcuHolo
             IsVisibleChanged += firstShow;
 
             StateChanged += (_, _) => { FitMaximized(); ApplyRoundRegion(); };
-            SizeChanged += (_, _) => ApplyRoundRegion();
+            // A window region repaints the whole window on every resize step; only Windows 10 needs it.
+            if (!DwmCorners) SizeChanged += (_, _) => ApplyRoundRegion();
             SourceInitialized += (_, _) =>
             {
+                if (DwmCorners)
+                {
+                    int round = 2; // DWMWCP_ROUND
+                    DwmSetWindowAttribute(new WindowInteropHelper(this).Handle, 33 /* DWMWA_WINDOW_CORNER_PREFERENCE */, ref round, sizeof(int));
+                }
                 ApplyRoundRegion();
                 // Added after WindowChrome's own hook, so it runs first (HwndSource calls newest hooks first).
                 HwndSource.FromHwnd(new WindowInteropHelper(this).Handle).AddHook(CornerHitTest);
@@ -148,6 +157,7 @@ namespace BcuHolo
         [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
         [DllImport("gdi32.dll")] private static extern IntPtr CreateRoundRectRgn(int x1, int y1, int x2, int y2, int w, int h);
         [DllImport("user32.dll")] private static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool redraw);
+        [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
 
         /// <summary>
         /// Windows 10 can't round top-level windows, so clip to a rounded region. The edge is aliased
@@ -156,6 +166,7 @@ namespace BcuHolo
         /// </summary>
         private void ApplyRoundRegion()
         {
+            if (DwmCorners) return;
             var hwnd = new WindowInteropHelper(this).Handle;
             if (hwnd == IntPtr.Zero) return;
             if (WindowState == WindowState.Maximized)
