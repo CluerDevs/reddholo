@@ -79,10 +79,12 @@ namespace BcuHolo.Modules.Gpu
                 _dots[i] = d;
                 Children.Add(d);
             }
-            m.Changed += Redraw;
             SizeChanged += (_, _) => { Layout(); Redraw(); };
-            Unloaded += (_, _) => m.Changed -= Redraw;
-            Loaded += (_, _) => { m.Changed -= Redraw; m.Changed += Redraw; Layout(); Redraw(); };
+            Sensors.SensorsModule.WhileShown(this, on =>
+            {
+                m.Changed -= Redraw;
+                if (on) { m.Changed += Redraw; Layout(); Redraw(); }
+            });
             Layout();
             Redraw();
         }

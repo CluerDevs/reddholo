@@ -91,12 +91,12 @@ namespace BcuHolo.Modules.Gpu
             }
             Refresh();
             var border = new Border { Style = Ui.R<Style>("DashTile"), Child = panel };
-            // Listen only while on screen: IsVisible drops when the page is left, the window hidden, or the tile discarded.
-            border.IsVisibleChanged += (_, _) =>
+            // Listen only while on screen: page left, window hidden or minimized, or tile discarded.
+            Sensors.SensorsModule.WhileShown(border, on =>
             {
                 m.Changed -= Refresh;
-                if (border.IsVisible) { m.Changed += Refresh; Refresh(); }
-            };
+                if (on) { m.Changed += Refresh; Refresh(); }
+            });
             return border;
         }
     }

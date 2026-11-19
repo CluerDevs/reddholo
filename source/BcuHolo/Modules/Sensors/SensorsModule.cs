@@ -28,17 +28,20 @@ namespace BcuHolo.Modules.Sensors
         /// Keeps <paramref name="onUpdate"/> subscribed to SensorHub only while <paramref name="el"/> is on screen
         /// (loaded, visible, window not minimized), so a hidden page doesn't keep the 1 Hz sensor loop running.
         /// </summary>
-        internal static void SubscribeWhileShown(FrameworkElement el, Action onUpdate)
+        internal static void SubscribeWhileShown(FrameworkElement el, Action onUpdate) =>
+            WhileShown(el, on => { if (on) { SensorHub.Subscribe(onUpdate); onUpdate(); } else SensorHub.Unsubscribe(onUpdate); });
+
+        /// <summary>Calls <paramref name="set"/>(true/false) as <paramref name="el"/> comes on/off screen (loaded, visible, window not minimized); always balanced.</summary>
+        internal static void WhileShown(FrameworkElement el, Action<bool> set)
         {
-            bool subscribed = false;
+            bool shown = false;
             Window win = null;
             void Update(object sender, EventArgs e)
             {
                 bool on = el.IsLoaded && el.IsVisible && win?.WindowState != WindowState.Minimized;
-                if (on == subscribed) return;
-                subscribed = on;
-                if (on) { SensorHub.Subscribe(onUpdate); onUpdate(); }
-                else SensorHub.Unsubscribe(onUpdate);
+                if (on == shown) return;
+                shown = on;
+                set(on);
             }
             el.Loaded += (_, _) =>
             {
