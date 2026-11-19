@@ -145,7 +145,7 @@ namespace BcuHolo.Modules.Sensors
             all.Click += (_, _) => host.Navigate("sensors");
             stack.Children.Add(all);
 
-            Root = new Border { Style = SensorsModule.Res<Style>("DashTile"), Child = stack };
+            Root = new GlassCard { Style = SensorsModule.Res<Style>("DashTile"), Child = stack };
             _onUpdate = Refresh;
             SensorsModule.SubscribeWhileShown(Root, _onUpdate);
         }
@@ -276,7 +276,7 @@ namespace BcuHolo.Modules.Sensors
             buttons.Children.Add(b);
             s.Children.Add(buttons);
 
-            var card = new Border { Style = SensorsModule.Res<Style>("Card"), Child = s, Margin = new Thickness(0, 0, 0, 12), Visibility = Visibility.Collapsed, MaxWidth = 800, HorizontalAlignment = HorizontalAlignment.Left };
+            var card = new GlassCard { Style = SensorsModule.Res<Style>("Card"), Child = s, Margin = new Thickness(0, 0, 0, 12), Visibility = Visibility.Collapsed, MaxWidth = 800, HorizontalAlignment = HorizontalAlignment.Left };
             card.SetResourceReference(Border.BorderBrushProperty, "Danger");
             card.SetResourceReference(Border.BackgroundProperty, "DangerSoft");
             UpdatePawnCard();
@@ -335,7 +335,7 @@ namespace BcuHolo.Modules.Sensors
             s.Children.Add(new TextBlock { Style = SensorsModule.Res<Style>("Caps"), Text = caps });
             s.Children.Add(t.Value);
             s.Children.Add(t.Reason);
-            strip.Children.Add(new Border { Style = SensorsModule.Res<Style>("Card"), Child = s, MinWidth = 170, Margin = new Thickness(0, 0, 12, 12) });
+            strip.Children.Add(new GlassCard { Style = SensorsModule.Res<Style>("Card"), Child = s, MinWidth = 170, Margin = new Thickness(0, 0, 12, 12) });
             return t;
         }
 
@@ -479,7 +479,7 @@ namespace BcuHolo.Modules.Sensors
                 var stack = new StackPanel();
                 stack.Children.Add(header);
                 stack.Children.Add(body);
-                _groups.Children.Add(new Border { Style = SensorsModule.Res<Style>("Card"), Child = stack, Margin = new Thickness(0, 0, 0, 12), HorizontalAlignment = HorizontalAlignment.Left });
+                _groups.Children.Add(new GlassCard { Style = SensorsModule.Res<Style>("Card"), Child = stack, Margin = new Thickness(0, 0, 0, 12), HorizontalAlignment = HorizontalAlignment.Left });
             }
             if (total == 0)
                 _groups.Children.Add(SensorsModule.Text("No readings yet.", 13, "Muted"));

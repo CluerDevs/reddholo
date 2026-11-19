@@ -11,9 +11,7 @@
             <Setter Property="BorderBrush" Value="{DynamicResource GlassLine}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="18"/>
-            <Setter Property="Effect">
-                <Setter.Value><DropShadowEffect Color="#000000" BlurRadius="32" ShadowDepth="8" Opacity="0.45"/></Setter.Value>
-            </Setter>
+            <!-- Shadow is drawn by GlassCard in a cached layer; a plain Border with this style has none. -->
             <Setter Property="Padding" Value="24,20"/>
         </Style>
 

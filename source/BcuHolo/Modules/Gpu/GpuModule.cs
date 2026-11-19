@@ -90,7 +90,7 @@ namespace BcuHolo.Modules.Gpu
                 line.Points = pts;
             }
             Refresh();
-            var border = new Border { Style = Ui.R<Style>("DashTile"), Child = panel };
+            var border = new GlassCard { Style = Ui.R<Style>("DashTile"), Child = panel };
             // Listen only while on screen: page left, window hidden or minimized, or tile discarded.
             Sensors.SensorsModule.WhileShown(border, on =>
             {
