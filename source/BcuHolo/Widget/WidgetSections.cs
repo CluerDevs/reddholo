@@ -119,7 +119,7 @@ namespace BcuHolo.Widget
 
             var tag = new TextBlock { FontSize = 12, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.NoWrap };
             tag.SetResourceReference(TextBlock.FontFamilyProperty, "Mono");
-            tag.Inlines.Add(WUi.MakeRun("BCU", "Text"));
+            tag.Inlines.Add(WUi.MakeRun("REDD", "Text"));
             tag.Inlines.Add(WUi.MakeRun(".", "Accent"));
             tag.Inlines.Add(WUi.MakeRun("HOLO", "Text"));
             tag.Inlines.Add(WUi.MakeRun("  //  ", "Muted"));

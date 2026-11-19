@@ -134,8 +134,7 @@ namespace BcuHolo.Modules.Gpu
         private bool _sliderInit;
 
         // ---- Compact view: smaller dials, no explainer/bars, curve editor + history hidden. Remembered across launches. ----
-        private static readonly string CompactMarker = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BCU-Holo", "gpu-compact");
+        private static readonly string CompactMarker = Path.Combine(BcuHolo.App.DataDir, "gpu-compact");
         private RadioButton _compactToggle;
         private Viewbox[] _dialBoxes;
         private Border _heroCard;

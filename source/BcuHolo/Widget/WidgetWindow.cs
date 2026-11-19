@@ -15,7 +15,7 @@ using BcuHolo.Modules.Sensors;
 
 namespace BcuHolo.Widget
 {
-    /// <summary>Persisted widget configuration (%LOCALAPPDATA%\BCU-Holo\widget.json). Unknown/missing items are fine.</summary>
+    /// <summary>Persisted widget configuration (%LOCALAPPDATA%\reddholo\widget.json). Unknown/missing items are fine.</summary>
     public sealed class WidgetSettings
     {
         public string Layout { get; set; } = "Compact";   // Compact | Stack | Strip
@@ -29,8 +29,7 @@ namespace BcuHolo.Widget
         public double? Top { get; set; }   // null until first moved (JSON can't store NaN)
         public int Version { get; set; }   // 0 = first widget version (item ids migrated on load)
 
-        private static readonly string Path_ = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BCU-Holo", "widget.json");
+        private static readonly string Path_ = Path.Combine(BcuHolo.App.DataDir, "widget.json");
 
         public static WidgetSettings Load()
         {
@@ -64,7 +63,7 @@ namespace BcuHolo.Widget
 
         public WidgetWindow()
         {
-            Title = "BCU Holo widget";
+            Title = "reddholo widget";
             WindowStyle = WindowStyle.None; AllowsTransparency = true; Background = Brushes.Transparent;
             ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false; SizeToContent = SizeToContent.WidthAndHeight;
             UseLayoutRounding = true;
@@ -260,9 +259,14 @@ namespace BcuHolo.Widget
     /// </summary>
     internal static class StartupTask
     {
-        private const string Name = "BCU Holo Widget";
+        private const string Name = "reddholo widget";
+        private const string OldName = "BCU Holo Widget"; // pre-rename; points at the old exe
 
-        public static bool IsRegistered() => Run($"/Query /TN \"{Name}\"").code == 0;
+        public static bool IsRegistered()
+        {
+            if (Run($"/Query /TN \"{OldName}\"").code == 0 && Register() == null) Run($"/Delete /TN \"{OldName}\" /F");
+            return Run($"/Query /TN \"{Name}\"").code == 0;
+        }
 
         public static string Register()
         {

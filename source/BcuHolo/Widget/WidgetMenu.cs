@@ -193,7 +193,7 @@ namespace BcuHolo.Widget
             menu.Items.Add(Check("Start with Windows", StartupTask.IsRegistered(), ToggleStartup));
 
             menu.Items.Add(new Separator());
-            menu.Items.Add(Item("Open BCU Holo", () => (Application.Current as App)?.ShowMain()));
+            menu.Items.Add(Item("Open reddholo", () => (Application.Current as App)?.ShowMain()));
             menu.Items.Add(Item("Close widget", () => { RememberOpen(false); Close(); }));
             return menu;
         }
@@ -201,7 +201,7 @@ namespace BcuHolo.Widget
         private void ToggleStartup()
         {
             var error = StartupTask.IsRegistered() ? StartupTask.Remove() : StartupTask.Register();
-            if (error != null) MessageBox.Show(error, "BCU Holo widget", MessageBoxButton.OK, MessageBoxImage.Warning);
+            if (error != null) MessageBox.Show(error, "reddholo widget", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 
         private static MenuItem Item(string header, Action click)

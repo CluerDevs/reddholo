@@ -13,7 +13,7 @@ namespace BcuHolo.Modules.Gpu
             string hint = code switch
             {
                 3 => "not supported by this GPU/driver",
-                4 => "permission denied (run BCU Holo as administrator)",
+                4 => "permission denied (run reddholo as administrator)",
                 9 => "NVIDIA driver is not loaded",
                 15 => "GPU is lost or unreachable",
                 _ => Nvml.ErrorText(code),

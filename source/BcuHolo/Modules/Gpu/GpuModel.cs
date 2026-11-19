@@ -19,8 +19,7 @@ namespace BcuHolo.Modules.Gpu
 
         private sealed class Saved { public double[] T { get; set; } public double[] F { get; set; } public bool Active { get; set; } public int Fixed { get; set; } = 100; }
 
-        private static readonly string SavePath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BCU-Holo", "gpu.json");
+        private static readonly string SavePath = Path.Combine(BcuHolo.App.DataDir, "gpu.json");
 
         private IHoloHost _host;
         private GpuDevice _dev;
@@ -32,8 +31,7 @@ namespace BcuHolo.Modules.Gpu
         /// Exists while fans are under our curve. If the app dies without restoring (crash, End Task), the next
         /// launch finds it and hands the fans back to the driver before anything else.
         /// </summary>
-        private static readonly string EngagedMarker = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BCU-Holo", "fan-control.active");
+        private static readonly string EngagedMarker = Path.Combine(BcuHolo.App.DataDir, "fan-control.active");
         private bool _shutDown;
 
         // Editable points (what the editor shows) and the snapshot the engine is actually running.
@@ -157,8 +155,8 @@ namespace BcuHolo.Modules.Gpu
                 {
                     var err = RestoreAll();
                     Warning = err == null
-                        ? "BCU Holo closed unexpectedly while the fan curve was active. Fans were handed back to automatic control."
-                        : "BCU Holo closed unexpectedly while the fan curve was active, and restoring automatic control failed: " + err;
+                        ? "reddholo closed unexpectedly while the fan curve was active. Fans were handed back to automatic control."
+                        : "reddholo closed unexpectedly while the fan curve was active, and restoring automatic control failed: " + err;
                 }
             }
             if (Application.Current != null) Application.Current.Exit += (_, _) => Shutdown();
@@ -378,7 +376,7 @@ namespace BcuHolo.Modules.Gpu
             var from = CurveActive ? "Custom curve" : "Automatic";
             if (!_host.Confirm("Apply fan curve",
                     $"Fan control: {from} -> Custom curve\n{pts}\n\nFloor {FloorPct}%. Forced to 100% at {ForceFullAt}°C and above.\n" +
-                    "Automatic control returns on \"Back to automatic\" or when BCU Holo exits.")) return;
+                    "Automatic control returns on \"Back to automatic\" or when reddholo exits.")) return;
             WriteMarker(); // before the first fan write, so a crash right after is still recoverable
             lock (_gate)
             {
@@ -410,7 +408,7 @@ namespace BcuHolo.Modules.Gpu
             if (!_host.Confirm("Set fixed fan speed",
                     $"Fan control: {from} -> Fixed {pct}%\n\nAll {FanCount} fan(s) held at {pct}% at every temperature" +
                     (pct < 100 ? $" (still forced to 100% at {ForceFullAt}°C and above)" : "") + ".\n" +
-                    "Automatic control returns on \"Auto\" or when BCU Holo exits.")) return;
+                    "Automatic control returns on \"Auto\" or when reddholo exits.")) return;
             WriteMarker(); // before the first fan write, so a crash right after is still recoverable
             lock (_gate)
             {

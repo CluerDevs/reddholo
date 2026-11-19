@@ -3,8 +3,8 @@
 	     Must build into the same bin folder as BCUninstaller: the engine finds its helper exes beside UninstallTools.dll. -->
 	<PropertyGroup>
 		<OutputType>WinExe</OutputType>
-		<AssemblyName>BCU-Holo</AssemblyName>
-		<Product>BCU Holo</Product>
+		<AssemblyName>reddholo</AssemblyName>
+		<Product>reddholo</Product>
 		<UseWPF>true</UseWPF>
 		<Nullable>disable</Nullable>
 		<ApplicationIcon>holo.ico</ApplicationIcon>

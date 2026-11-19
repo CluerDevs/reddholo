@@ -45,7 +45,7 @@ namespace BcuHolo.Modules.Apps
         }
 
         private void ShowError(string title, Exception ex) =>
-            MessageBox.Show(Window.GetWindow(this), title + ": " + ex.Message, "BCU Holo", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(Window.GetWindow(this), title + ": " + ex.Message, "reddholo", MessageBoxButton.OK, MessageBoxImage.Error);
 
         private void EndOverlay()
         {

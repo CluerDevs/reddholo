@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-	<!-- The only assembly a BCU Holo module or sensor plugin needs to reference. Keep it small and stable. -->
+	<!-- The only assembly a reddholo module or sensor plugin needs to reference. Keep it small and stable. -->
 	<PropertyGroup>
 		<OutputType>Library</OutputType>
 		<UseWPF>true</UseWPF>

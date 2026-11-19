@@ -47,8 +47,7 @@ namespace BcuHolo.Themes
                 "#070A12", "#0B1020", "#131A2C", "#F5F0E1", "#B8B09A", "#4A4636", "#FFD24D", "#E0C27A", "#7CE3A0", "#FF7A4D", "#C9A6FF", "#8FB4FF"),
         };
 
-        private static readonly string SettingsPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BCU-Holo", "settings.json");
+        private static readonly string SettingsPath = Path.Combine(BcuHolo.App.DataDir, "settings.json");
 
         public static Theme Current { get; private set; } = All[0];
         public static event Action Changed;

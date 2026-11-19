@@ -72,8 +72,7 @@ namespace BcuHolo.Modules.Startup
         {
             if (sender is not FrameworkElement { DataContext: StartupRow row }) return;
 
-            var backupDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "BCU-Holo", "StartupBackups", DateTime.Now.ToString("yyyyMMdd-HHmmss"));
+            var backupDir = Path.Combine(BcuHolo.App.DataDir, "StartupBackups", DateTime.Now.ToString("yyyyMMdd-HHmmss"));
             if (!_host.Confirm("Delete startup entry",
                     $"Delete \"{row.Name}\" ({row.Kind}, {row.Location}) from startup?\n\n" +
                     $"A backup is saved first to:\n{backupDir}"))

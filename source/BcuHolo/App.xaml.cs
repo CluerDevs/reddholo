@@ -10,17 +10,32 @@ namespace BcuHolo
 {
     public partial class App : Application
     {
-        private static readonly string LogPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BCU-Holo", "errors.log");
+        /// <summary>%LOCALAPPDATA%\reddholo: settings, widget layout, fan curve, startup-entry backups, error log.</summary>
+        internal static readonly string DataDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "reddholo");
+        private static readonly string LogPath = Path.Combine(DataDir, "errors.log");
 
         // One instance only: two copies would run two GPU fan engines fighting over the same fans.
         private static System.Threading.Mutex _single;
         private static readonly System.Threading.EventWaitHandle ShowSignal =
-            new(false, System.Threading.EventResetMode.AutoReset, @"Local\BCU-Holo-Show");
+            new(false, System.Threading.EventResetMode.AutoReset, @"Local\reddholo-Show");
+
+        /// <summary>
+        /// Renamed from BCU Holo: carry its data folder over once (it holds the fan-control crash marker the GPU engine
+        /// checks at start). If the move fails the old folder is left untouched and the app starts with defaults.
+        /// </summary>
+        private static void MoveLegacyData()
+        {
+            var old = Path.Combine(Path.GetDirectoryName(DataDir), "BCU-Holo");
+            if (!Directory.Exists(old) || Directory.Exists(DataDir)) return;
+            try { Directory.Move(old, DataDir); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
 
         protected override void OnStartup(StartupEventArgs e)
         {
-            _single = new System.Threading.Mutex(false, @"Local\BCU-Holo-Single");
+            MoveLegacyData();
+            _single = new System.Threading.Mutex(false, @"Local\reddholo-Single");
             bool owned;
             // "--restart" (Sensors page) waits for the old instance to exit instead of handing off to it.
             try { owned = _single.WaitOne(Array.IndexOf(e.Args, "--restart") >= 0 ? 15000 : 0); }
@@ -116,8 +131,8 @@ namespace BcuHolo
             Log("UI", e.Exception);
             e.Handled = true; // keep running; the failing action is abandoned
             MessageBox.Show(MainWindow,
-                $"Something went wrong, but BCU Holo is still running.\n\n{e.Exception.Message}\n\nDetails were saved to:\n{LogPath}",
-                "BCU Holo", MessageBoxButton.OK, MessageBoxImage.Warning);
+                $"Something went wrong, but reddholo is still running.\n\n{e.Exception.Message}\n\nDetails were saved to:\n{LogPath}",
+                "reddholo", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 
         private static void Log(string kind, Exception ex)

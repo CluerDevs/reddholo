@@ -287,15 +287,15 @@ namespace BcuHolo.Modules.Sensors
         {
             if (PawnIoInstaller.IsInstalled())
             {
-                _pawnTitle.Text = "PawnIO is installed. Restart BCU Holo to load CPU sensors";
+                _pawnTitle.Text = "PawnIO is installed. Restart reddholo to load CPU sensors";
                 _pawnBody.Text = "The sensor library only picks up the driver when it starts.";
-                _pawnAction.Content = "Restart BCU Holo";
+                _pawnAction.Content = "Restart reddholo";
             }
             else
             {
                 _pawnTitle.Text = "CPU temperature, power and voltage need the PawnIO driver";
                 _pawnBody.Text = "PawnIO is a small signed, open-source driver that LibreHardwareMonitor uses to read CPU sensors. "
-                    + "A verified copy ships with BCU Holo. It installs only when you click below, and can be removed in Windows Settings > Apps.";
+                    + "A verified copy ships with reddholo. It installs only when you click below, and can be removed in Windows Settings > Apps.";
                 _pawnAction.Content = "Install PawnIO";
             }
             _pawnAction.IsEnabled = true;
@@ -313,7 +313,7 @@ namespace BcuHolo.Modules.Sensors
             }
             if (MessageBox.Show(owner,
                     "Install the PawnIO kernel driver (version 2.2.0, by namazso)?\n\n"
-                    + "It lets BCU Holo read CPU temperature, power and voltage. It runs with full system privileges and only loads signed modules.\n\n"
+                    + "It lets reddholo read CPU temperature, power and voltage. It runs with full system privileges and only loads signed modules.\n\n"
                     + "You can uninstall it any time from Windows Settings > Apps > PawnIO.",
                     "Install PawnIO", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes)
                 return;

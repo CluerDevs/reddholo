@@ -1,7 +1,7 @@
 <Window x:Class="BcuHolo.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="BCU Holo" Icon="/holo.ico" Width="1440" Height="900" MinWidth="980" MinHeight="620"
+        Title="reddholo" Icon="/holo.ico" Width="1440" Height="900" MinWidth="980" MinHeight="620"
         Background="{DynamicResource Bg}" Foreground="{DynamicResource Text}"
         FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="14"
         WindowStartupLocation="CenterScreen" UseLayoutRounding="True">
@@ -122,10 +122,10 @@
                         <Image.Effect><DropShadowEffect Color="{DynamicResource Accent.C}" BlurRadius="12" ShadowDepth="0" Opacity="0.7"/></Image.Effect>
                     </Image>
                     <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontFamily="{DynamicResource Display}" FontSize="18" FontWeight="Bold">
-                        <Run Text="BCU"/><Run Text="/" Foreground="{DynamicResource Accent}"/><Run Text="HOLO"/>
+                        <Run Text="REDD"/><Run Text="/" Foreground="{DynamicResource Accent}"/><Run Text="HOLO"/>
                     </TextBlock>
                 </StackPanel>
-                <TextBlock DockPanel.Dock="Bottom" Text="BCU.HOLO · NODE 07" FontFamily="{DynamicResource Mono}" FontSize="9" Foreground="{DynamicResource Muted.52}" Margin="8,10,0,0"/>
+                <TextBlock DockPanel.Dock="Bottom" Text="REDD.HOLO · NODE 07" FontFamily="{DynamicResource Mono}" FontSize="9" Foreground="{DynamicResource Muted.52}" Margin="8,10,0,0"/>
                 <Border DockPanel.Dock="Bottom" CornerRadius="16" Background="{DynamicResource Good.12}" BorderBrush="{DynamicResource Good.40}" BorderThickness="1" Padding="12,10" Margin="4,12,4,0">
                     <StackPanel>
                         <StackPanel Orientation="Horizontal">
