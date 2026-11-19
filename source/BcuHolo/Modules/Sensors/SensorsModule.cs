@@ -23,6 +23,38 @@ namespace BcuHolo.Modules.Sensors
         public FrameworkElement CreateTile(IHoloHost host) => new SensorsTile(host).Root;
 
         // ---- shared helpers ----
+
+        /// <summary>
+        /// Keeps <paramref name="onUpdate"/> subscribed to SensorHub only while <paramref name="el"/> is on screen
+        /// (loaded, visible, window not minimized), so a hidden page doesn't keep the 1 Hz sensor loop running.
+        /// </summary>
+        internal static void SubscribeWhileShown(FrameworkElement el, Action onUpdate)
+        {
+            bool subscribed = false;
+            Window win = null;
+            void Update(object sender, EventArgs e)
+            {
+                bool on = el.IsLoaded && el.IsVisible && win?.WindowState != WindowState.Minimized;
+                if (on == subscribed) return;
+                subscribed = on;
+                if (on) { SensorHub.Subscribe(onUpdate); onUpdate(); }
+                else SensorHub.Unsubscribe(onUpdate);
+            }
+            el.Loaded += (_, _) =>
+            {
+                if (win != null) win.StateChanged -= Update;
+                win = Window.GetWindow(el);
+                if (win != null) win.StateChanged += Update;
+                Update(null, null);
+            };
+            el.Unloaded += (_, _) =>
+            {
+                if (win != null) win.StateChanged -= Update;
+                win = null;
+                Update(null, null);
+            };
+            el.IsVisibleChanged += (_, _) => Update(null, null);
+        }
         internal static T Res<T>(string key) => (T)Application.Current.FindResource(key);
 
         internal static string Fmt(double v, string unit)
@@ -101,8 +133,7 @@ namespace BcuHolo.Modules.Sensors
 
             Root = new Border { Style = SensorsModule.Res<Style>("DashTile"), Child = stack };
             _onUpdate = Refresh;
-            Root.Loaded += (_, _) => { SensorHub.Subscribe(_onUpdate); Refresh(); };
-            Root.Unloaded += (_, _) => SensorHub.Unsubscribe(_onUpdate);
+            SensorsModule.SubscribeWhileShown(Root, _onUpdate);
         }
 
         private void Refresh()
@@ -190,8 +221,7 @@ namespace BcuHolo.Modules.Sensors
             Content = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = root };
 
             _onUpdate = Refresh;
-            Loaded += (_, _) => { SensorHub.Subscribe(_onUpdate); Refresh(); };
-            Unloaded += (_, _) => SensorHub.Unsubscribe(_onUpdate);
+            SensorsModule.SubscribeWhileShown(this, _onUpdate);
         }
 
         private TextBlock _pawnTitle, _pawnBody;
