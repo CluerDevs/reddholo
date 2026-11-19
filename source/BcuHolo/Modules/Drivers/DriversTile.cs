@@ -33,7 +33,7 @@ namespace BcuHolo.Modules.Drivers
             buttons.Children.Add(details);
             stack.Children.Add(buttons);
 
-            return new GlassCard
+            return new Border
             {
                 Style = Res<Style>("DashTile"),
                 DataContext = model,

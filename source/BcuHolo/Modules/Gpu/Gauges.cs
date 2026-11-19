@@ -220,7 +220,7 @@ namespace BcuHolo.Modules.Gpu
     }
 
     /// <summary>Small secondary gauge tile: mini ring with a percentage, caption, value and a sub line.</summary>
-    internal sealed class Stat : GlassCard
+    internal sealed class Stat : Border
     {
         private readonly Ellipse _arc;
         private readonly TextBlock _ring, _value, _sub;

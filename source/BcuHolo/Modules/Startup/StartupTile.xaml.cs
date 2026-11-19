@@ -8,7 +8,7 @@ using BcuHolo.Plugins;
 namespace BcuHolo.Modules.Startup
 {
     /// <summary>Dashboard tile: enabled/total counts plus up to four enabled third-party items.</summary>
-    public partial class StartupTile : GlassCard
+    public partial class StartupTile : Border
     {
         private readonly StartupModule _module;
         private readonly IHoloHost _host;

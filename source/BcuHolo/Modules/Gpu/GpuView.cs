@@ -167,7 +167,7 @@ namespace BcuHolo.Modules.Gpu
             SetResourceReference(ForegroundProperty, "Text");
 
             var unavailable = Ui.Text(m.Error ?? "", 16, "Danger", weight: FontWeights.SemiBold);
-            var unavailCard = new GlassCard { Style = Ui.R<Style>("Card"), Margin = new Thickness(0, 0, 0, 16), Child = unavailable, Visibility = Visibility.Collapsed };
+            var unavailCard = new Border { Style = Ui.R<Style>("Card"), Margin = new Thickness(0, 0, 0, 16), Child = unavailable, Visibility = Visibility.Collapsed };
 
             _banner = new Border
             {
@@ -301,7 +301,7 @@ namespace BcuHolo.Modules.Gpu
             Grid.SetColumn(stackPanel, 1);
             Grid.SetColumn(rb, 2);
             hero.Children.Add(lb); hero.Children.Add(stackPanel); hero.Children.Add(rb);
-            var heroCard = _heroCard = new GlassCard { Style = Ui.R<Style>("Card"), Padding = new Thickness(16), Margin = new Thickness(0, 0, 0, 16), Child = hero };
+            var heroCard = _heroCard = new Border { Style = Ui.R<Style>("Card"), Padding = new Thickness(16), Margin = new Thickness(0, 0, 0, 16), Child = hero };
 
             // ---- Stat strip ----
             _sVram = new Stat("VRAM"); _sMem = new Stat("MEM CLOCK"); _sPower = new Stat("POWER");
@@ -330,12 +330,12 @@ namespace BcuHolo.Modules.Gpu
             _applyNote.Margin = new Thickness(0, 10, 0, 0);
             _applyNote.Visibility = Visibility.Collapsed;
             curve.Children.Add(_applyNote);
-            var curveCard = new GlassCard { Style = Ui.R<Style>("Card"), Margin = new Thickness(0, 0, 8, 0), Child = curve };
+            var curveCard = new Border { Style = Ui.R<Style>("Card"), Margin = new Thickness(0, 0, 8, 0), Child = curve };
 
             var histBody = new StackPanel();
             histBody.Children.Add(new TextBlock { Text = "LIVE HISTORY · LAST 60 S", Style = Ui.R<Style>("Caps") });
             histBody.Children.Add(_hist);
-            var histCard = new GlassCard { Style = Ui.R<Style>("Card"), Margin = new Thickness(8, 0, 0, 0), Child = histBody };
+            var histCard = new Border { Style = Ui.R<Style>("Card"), Margin = new Thickness(8, 0, 0, 0), Child = histBody };
 
             var lower = _lower = new Grid { Margin = new Thickness(0, 0, 0, 16) };
             lower.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });

@@ -421,7 +421,7 @@ namespace BcuHolo.Modules.Cleanup
             foreach (var i in _items) i.PropertyChanged += (_, _) => Refresh();
             Refresh();
 
-            return new GlassCard { Style = R<Style>("DashTile"), Child = panel };
+            return new Border { Style = R<Style>("DashTile"), Child = panel };
         }
     }
 }
