@@ -103,16 +103,22 @@ namespace BcuHolo
         // ---- Window chrome ----
 
         private System.Windows.Controls.Primitives.Popup _themePopup;
-        private long _themeClosedAt;
+        private bool _closedByAnchor;
         private void Theme_Click(object sender, RoutedEventArgs e)
         {
             if (_themePopup == null)
             {
                 _themePopup = BcuHolo.Themes.ThemePicker.Create(ThemeButton);
-                _themePopup.Closed += (_, _) => _themeClosedAt = Environment.TickCount64;
+                // Bounds check instead of IsMouseOver: the open popup holds mouse capture.
+                _themePopup.Closed += (_, _) => _closedByAnchor =
+                    System.Windows.Input.Mouse.LeftButton == System.Windows.Input.MouseButtonState.Pressed
+                    && _themePopup.PlacementTarget is UIElement t
+                    && new Rect(t.RenderSize).Contains(System.Windows.Input.Mouse.GetPosition(t));
             }
-            // StaysOpen=false already closed it on mouse-down; without this the click would reopen it at once.
-            if (Environment.TickCount64 - _themeClosedAt < 300) return;
+            // StaysOpen=false already closed it on mouse-down at this anchor; without this the click would reopen it at once.
+            var closedHere = _closedByAnchor && sender == _themePopup.PlacementTarget;
+            _closedByAnchor = false;
+            if (closedHere) return;
             // Opens beside whichever button was clicked: below the caption icon, to the right of the rail button.
             var anchor = (UIElement)sender;
             _themePopup.PlacementTarget = anchor;
