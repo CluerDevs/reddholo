@@ -187,8 +187,8 @@ namespace BcuHolo.Widget
             menu.Items.Add(opacity);
 
             menu.Items.Add(new Separator());
-            menu.Items.Add(Check("Always on top", _s.OnTop, () => { _s.OnTop = true; ApplyWindowSettings(); }));
-            menu.Items.Add(Check("Pin to desktop (behind windows)", !_s.OnTop, () => { _s.OnTop = false; ApplyWindowSettings(); }));
+            menu.Items.Add(Check("Always on top", _s.OnTop, () => { _s.OnTop = !_s.OnTop; ApplyWindowSettings(); }));
+            menu.Items.Add(Check("Pin to desktop (behind windows)", !_s.OnTop, () => { _s.OnTop = !_s.OnTop; ApplyWindowSettings(); }));
             menu.Items.Add(Check("Lock position", _s.Locked, () => { _s.Locked = !_s.Locked; _s.Save(); }));
             menu.Items.Add(Check("Start with Windows", StartupTask.IsRegistered(), ToggleStartup));
 
