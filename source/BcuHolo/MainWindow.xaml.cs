@@ -103,9 +103,16 @@ namespace BcuHolo
         // ---- Window chrome ----
 
         private System.Windows.Controls.Primitives.Popup _themePopup;
+        private long _themeClosedAt;
         private void Theme_Click(object sender, RoutedEventArgs e)
         {
-            _themePopup ??= BcuHolo.Themes.ThemePicker.Create(ThemeButton);
+            if (_themePopup == null)
+            {
+                _themePopup = BcuHolo.Themes.ThemePicker.Create(ThemeButton);
+                _themePopup.Closed += (_, _) => _themeClosedAt = Environment.TickCount64;
+            }
+            // StaysOpen=false already closed it on mouse-down; without this the click would reopen it at once.
+            if (Environment.TickCount64 - _themeClosedAt < 300) return;
             // Opens beside whichever button was clicked: below the caption icon, to the right of the rail button.
             var anchor = (UIElement)sender;
             _themePopup.PlacementTarget = anchor;
