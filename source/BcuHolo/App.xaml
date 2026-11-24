@@ -11,9 +11,8 @@
             <Setter Property="BorderBrush" Value="{DynamicResource GlassLine}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="18"/>
-            <Setter Property="Effect">
-                <Setter.Value><DropShadowEffect Color="#000000" BlurRadius="32" ShadowDepth="8" Opacity="0.45"/></Setter.Value>
-            </Setter>
+            <!-- No DropShadowEffect: WPF re-blurs the whole card on every value change and animation frame, which made the
+                 dashboard choppy. On the near-black backdrop the shadow was barely visible anyway. -->
             <Setter Property="Padding" Value="24,20"/>
         </Style>
 

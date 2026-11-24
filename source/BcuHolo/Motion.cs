@@ -14,10 +14,8 @@ namespace BcuHolo
     internal static class Motion
     {
         private const double Seconds = 0.25;
-        // Cost control: every animated frame re-renders the glass card's drop shadow around the gauge. 30 fps looks smooth
-        // for a sweep, and sub-threshold jitter (idle load 1%->2%) snaps instead of animating every second.
-        private static readonly TimeSpan FrameGap = TimeSpan.FromMilliseconds(33);
-        private static TimeSpan _lastFrame;
+        // Sub-threshold jitter (idle load 1%->2%) snaps instead of animating every second. Tweens run at the display's
+        // frame rate: the cards no longer carry a drop shadow that each frame had to re-blur.
 
         private sealed class State
         {
@@ -86,8 +84,6 @@ namespace BcuHolo
         private static void OnFrame(object sender, EventArgs e)
         {
             var now = ((RenderingEventArgs)e).RenderingTime;
-            if (now - _lastFrame < FrameGap) return;
-            _lastFrame = now;
             for (int i = Running.Count - 1; i >= 0; i--)
             {
                 var s = Running[i];

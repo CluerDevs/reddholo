@@ -162,7 +162,7 @@ namespace BcuHolo.Modules.Dashboard
                         MemRest.Width = new GridLength(1 - f, GridUnitType.Star);
                     });
                 }
-                MemTop.ItemsSource = top;
+                if (!ReferenceEquals(MemTop.ItemsSource, top)) MemTop.ItemsSource = top; // rebuilding the rows every poll caused a hitch
 
                 if (gpu != null)
                 {
